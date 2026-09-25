@@ -1,0 +1,125 @@
+{
+  "training_timestamp": "2026-09-25T17:43:27.568710+00:00",
+  "framework": "scikit-learn",
+  "model_version": "v1.0",
+  "models": {
+    "model_a": {
+      "model": "Model A (Cyclone Detection)",
+      "type": "binary_classification",
+      "accuracy": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "confusion_matrix": [
+        [
+          75,
+          0
+        ],
+        [
+          0,
+          75
+        ]
+      ],
+      "test_samples": 150
+    },
+    "model_b": {
+      "model": "Model B (IMD 8-Tier Classification)",
+      "type": "multiclass_classification",
+      "accuracy": 0.9967,
+      "precision_macro": 0.9968,
+      "recall_macro": 0.9967,
+      "f1_macro": 0.9967,
+      "confusion_matrix": [
+        [
+          37,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          38,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          38,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          40,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          39,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          39,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          37,
+          1
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          38
+        ]
+      ],
+      "test_samples": 307
+    },
+    "model_c": {
+      "model": "Model C (Short-term Intensity Prediction)",
+      "type": "regression",
+      "mae_knots": 1.789,
+      "rmse_knots": 2.216,
+      "r2_score": 0.9125,
+      "test_samples": 200
+    }
+  }
+}
