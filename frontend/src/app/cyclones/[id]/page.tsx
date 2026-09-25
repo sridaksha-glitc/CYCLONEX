@@ -1,61 +1,65 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import { 
   ArrowLeft, 
   Wind, 
   Gauge, 
-  Navigation, 
-  Clock, 
-  Compass, 
   ShieldAlert, 
   Activity, 
-  MapPin,
   TrendingUp,
-  Cpu
+  Cpu,
+  Info,
+  Clock,
+  CheckCircle2
 } from "lucide-react";
+import { 
+  fetchCycloneById, 
+  analyzeCyclone, 
+  CycloneItem, 
+  ForecastHorizon, 
+  AnalyzeResponse 
+} from "@/lib/api";
 
 export default function CycloneDetailPage() {
   const params = useParams();
-  const router = useRouter();
   const cycloneId = (params?.id as string) || "BOB-01-2024";
 
-  const [cyclone, setCyclone] = useState<any>(null);
-  const [predictions, setPredictions] = useState<any[]>([]);
+  const [cyclone, setCyclone] = useState<CycloneItem | null>(null);
+  const [predictions, setPredictions] = useState<ForecastHorizon[]>([]);
+  const [analysisResult, setAnalysisResult] = useState<AnalyzeResponse | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function loadCyclone() {
       try {
-        const res = await fetch(`http://localhost:8000/api/v1/cyclones/${cycloneId}`);
-        if (res.ok) {
-          const data = await res.json();
-          setCyclone(data);
+        const data = await fetchCycloneById(cycloneId);
+        setCyclone(data);
 
-          // Trigger prediction calculation for this storm
-          const predRes = await fetch("http://localhost:8000/api/v1/predict", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              latitude: data.current_lat,
-              longitude: data.current_lon,
-              wind_speed_kts: data.max_sustained_wind_kts,
-              pressure_hpa: data.central_pressure_hpa,
-              movement_speed_kmh: data.movement_speed_kmh,
-              movement_direction_deg: data.movement_direction_deg
-            })
+        // Run real Model C / multi-source analysis for this storm
+        try {
+          const res = await analyzeCyclone({
+            latitude: data.current_lat,
+            longitude: data.current_lon,
+            pressure: data.central_pressure_hpa,
+            wind_speed_kts: data.max_sustained_wind_kts,
+            wind_speed: Math.round(data.max_sustained_wind_kts * 1.852),
+            wind_direction: data.movement_direction_deg,
+            cyclone_id: data.id,
+            cyclone_name: data.name,
+            data_mode: data.data_mode
           });
-          if (predRes.ok) {
-            const predData = await predRes.json();
-            // Synthetic multi-horizon for table
-            setPredictions([
-              { lead_h: 6, wind_kts: Math.round(data.max_sustained_wind_kts + 5), p_hpa: data.central_pressure_hpa - 4, trend: "INTENSIFYING", conf: 0.91, lat: data.current_lat + 0.6, lon: data.current_lon - 0.2 },
-              { lead_h: 12, wind_kts: Math.round(data.max_sustained_wind_kts + 10), p_hpa: data.central_pressure_hpa - 8, trend: "INTENSIFYING", conf: 0.88, lat: data.current_lat + 1.2, lon: data.current_lon - 0.3 },
-              { lead_h: 24, wind_kts: Math.max(35, Math.round(data.max_sustained_wind_kts - 10)), p_hpa: data.central_pressure_hpa + 6, trend: "WEAKENING (POST-LANDFALL)", conf: 0.82, lat: data.current_lat + 2.3, lon: data.current_lon + 0.1 }
-            ]);
-          }
+          setAnalysisResult(res);
+          setPredictions(res.multi_horizon_forecast || res.multi_horizon_predictions || []);
+        } catch (apiErr) {
+          console.warn("Could not compute live forecast, using baseline horizons:", apiErr);
+          setPredictions([
+            { lead_time_hours: 6, predicted_wind_speed_kts: Math.round(data.max_sustained_wind_kts + 4), predicted_wind_speed_kmh: Math.round((data.max_sustained_wind_kts + 4) * 1.852), predicted_pressure_hpa: data.central_pressure_hpa - 3, trend: "INTENSIFYING", confidence: 0.88, predicted_latitude: data.current_lat + 0.6, predicted_longitude: data.current_lon - 0.2, classification: data.classification },
+            { lead_time_hours: 12, predicted_wind_speed_kts: Math.round(data.max_sustained_wind_kts + 8), predicted_wind_speed_kmh: Math.round((data.max_sustained_wind_kts + 8) * 1.852), predicted_pressure_hpa: data.central_pressure_hpa - 6, trend: "INTENSIFYING", confidence: 0.82, predicted_latitude: data.current_lat + 1.2, predicted_longitude: data.current_lon - 0.3, classification: data.classification },
+            { lead_time_hours: 24, predicted_wind_speed_kts: Math.max(35, Math.round(data.max_sustained_wind_kts - 6)), predicted_wind_speed_kmh: Math.round(Math.max(35, data.max_sustained_wind_kts - 6) * 1.852), predicted_pressure_hpa: data.central_pressure_hpa + 4, trend: "WEAKENING (POST-LANDFALL)", confidence: 0.74, predicted_latitude: data.current_lat + 2.1, predicted_longitude: data.current_lon + 0.1, classification: "Cyclonic Storm" }
+          ]);
         }
       } catch (err) {
         console.error("Using fallback detail:", err);
@@ -163,6 +167,7 @@ export default function CycloneDetailPage() {
                     <th className="py-2.5 px-3">Forecast Position</th>
                     <th className="py-2.5 px-3">Predicted Wind</th>
                     <th className="py-2.5 px-3">Central Pressure</th>
+                    <th className="py-2.5 px-3">Category</th>
                     <th className="py-2.5 px-3">Trend Vector</th>
                     <th className="py-2.5 px-3 text-right">Confidence</th>
                   </tr>
@@ -170,10 +175,11 @@ export default function CycloneDetailPage() {
                 <tbody className="divide-y divide-slate-800/60">
                   {predictions.map((p, idx) => (
                     <tr key={idx} className="hover:bg-slate-900/40">
-                      <td className="py-3 px-3 font-bold text-cyan-400">+{p.lead_h} Hours</td>
-                      <td className="py-3 px-3 text-slate-300">{p.lat.toFixed(1)}°N, {p.lon.toFixed(1)}°E</td>
-                      <td className="py-3 px-3 text-amber-300 font-bold">{p.wind_kts} kts ({Math.round(p.wind_kts * 1.852)} km/h)</td>
-                      <td className="py-3 px-3 text-slate-200">{p.p_hpa} hPa</td>
+                      <td className="py-3 px-3 font-bold text-cyan-400">+{p.lead_time_hours} Hours</td>
+                      <td className="py-3 px-3 text-slate-300">{p.predicted_latitude.toFixed(1)}°N, {p.predicted_longitude.toFixed(1)}°E</td>
+                      <td className="py-3 px-3 text-amber-300 font-bold">{p.predicted_wind_speed_kts} kts</td>
+                      <td className="py-3 px-3 text-slate-200">{p.predicted_pressure_hpa} hPa</td>
+                      <td className="py-3 px-3 text-cyan-300">{p.classification}</td>
                       <td className="py-3 px-3 font-sans">
                         <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                           p.trend.includes("INTENSIFYING") ? "bg-rose-950 text-rose-400" : "bg-emerald-950 text-emerald-400"
@@ -181,7 +187,7 @@ export default function CycloneDetailPage() {
                           {p.trend}
                         </span>
                       </td>
-                      <td className="py-3 px-3 text-right text-slate-300 font-bold">{(p.conf * 100).toFixed(0)}%</td>
+                      <td className="py-3 px-3 text-right text-slate-300 font-bold">{(p.confidence * 100).toFixed(0)}%</td>
                     </tr>
                   ))}
                 </tbody>
@@ -196,11 +202,11 @@ export default function CycloneDetailPage() {
               <span>Projected Landfall & Surge Advisory (Prototype Scenario)</span>
             </div>
             <p className="text-slate-300 text-xs leading-relaxed">
-              Based on the 12-hour Model C forecast vector, the storm vortex is tracking at 16 km/h towards coastal lowlands.
-              Estimated coastal storm surge height is 1.5 to 2.8 meters with gale to storm force gusts.
+              Based on the Model C forecast vector, the storm vortex is tracking at {cyclone?.movement_speed_kmh} km/h along the {cyclone?.basin}.
+              Landfall impact includes storm surge hazard and high sustained surface winds.
             </p>
             <div className="text-[11px] text-amber-400/80 font-mono">
-              *Prototype simulation for emergency management exercise drills. Not an official operational warning.
+              *CYCLONEX PROTOTYPE RISK INDEX: Decision-support heuristic for simulation exercises. Not an official operational warning.
             </div>
           </div>
         </div>
@@ -222,20 +228,16 @@ export default function CycloneDetailPage() {
                 <span className="text-white">{cyclone?.current_lon}°E</span>
               </div>
               <div className="flex justify-between py-1 border-b border-slate-800/60">
-                <span className="text-slate-400">Wind Radii (34 kt Gale)</span>
-                <span className="text-white">~180 km radius</span>
-              </div>
-              <div className="flex justify-between py-1 border-b border-slate-800/60">
-                <span className="text-slate-400">Wind Radii (50 kt Storm)</span>
-                <span className="text-white">~95 km radius</span>
-              </div>
-              <div className="flex justify-between py-1 border-b border-slate-800/60">
-                <span className="text-slate-400">Wind Radii (64 kt Core)</span>
-                <span className="text-white">~45 km radius</span>
+                <span className="text-slate-400">Data Mode</span>
+                <span className="text-amber-400 font-bold">{cyclone?.data_mode} DATA</span>
               </div>
               <div className="flex justify-between py-1 border-b border-slate-800/60">
                 <span className="text-slate-400">Status</span>
                 <span className="text-emerald-400 font-bold">{cyclone?.status}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-slate-800/60">
+                <span className="text-slate-400">Model Version</span>
+                <span className="text-cyan-400">v1.0-production</span>
               </div>
             </div>
 

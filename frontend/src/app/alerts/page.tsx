@@ -12,9 +12,10 @@ import {
   Clock,
   Radio
 } from "lucide-react";
+import { fetchAlerts, dispatchAlert, AlertItem } from "@/lib/api";
 
 export default function AlertsCenterPage() {
-  const [alerts, setAlerts] = useState<any[]>([]);
+  const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Manual Trigger Form States
@@ -30,22 +31,19 @@ export default function AlertsCenterPage() {
   const [submitting, setSubmitting] = useState(false);
   const [successNotice, setSuccessNotice] = useState<string | null>(null);
 
-  const fetchAlerts = async () => {
+  const loadAlerts = async () => {
     try {
-      const res = await fetch("http://localhost:8000/api/v1/alerts");
-      if (res.ok) {
-        const data = await res.json();
-        setAlerts(data.alerts || []);
-      }
+      const data = await fetchAlerts();
+      setAlerts(data.alerts || []);
     } catch (e) {
-      console.error(e);
+      console.error("Alerts fetch error:", e);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchAlerts();
+    loadAlerts();
   }, []);
 
   const handleTriggerAlert = async (e: React.FormEvent) => {
@@ -67,23 +65,16 @@ export default function AlertsCenterPage() {
         message: customMsg || undefined
       };
 
-      const res = await fetch("http://localhost:8000/api/v1/alerts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        setSuccessNotice(`Alert '${data.title}' successfully dispatched! n8n webhook triggered: ${data.n8n_dispatched ? 'YES' : 'LOGGED LOCALLY'}`);
-        fetchAlerts();
-      }
+      const data = await dispatchAlert(payload);
+      setSuccessNotice(`Alert '${data.title}' successfully dispatched! n8n webhook triggered: ${data.n8n_dispatched ? 'YES' : 'LOGGED LOCALLY'}`);
+      loadAlerts();
     } catch (err: any) {
       console.error(err);
     } finally {
       setSubmitting(false);
     }
   };
+
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
@@ -96,7 +87,7 @@ export default function AlertsCenterPage() {
           </div>
           <h1 className="text-3xl font-black text-white">Cyclone Alert Center</h1>
           <p className="text-slate-400 text-sm mt-1">
-            Automated alerting engine monitoring real-time threshold breaches ($PRI \ge 60$) and dispatching multi-channel broadcasts.
+            Automated alerting engine monitoring real-time threshold breaches (PRI &ge; 60) and dispatching multi-channel broadcasts.
           </p>
         </div>
 

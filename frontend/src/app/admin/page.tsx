@@ -13,6 +13,7 @@ import {
   CloudSun,
   Lock
 } from "lucide-react";
+import { API_BASE_URL } from "@/lib/api";
 
 export default function AdminHealthPage() {
   const [healthData, setHealthData] = useState<any>(null);
@@ -23,7 +24,7 @@ export default function AdminHealthPage() {
     setLoading(true);
     const start = performance.now();
     try {
-      const res = await fetch("http://localhost:8000/api/v1/health");
+      const res = await fetch(`${API_BASE_URL}/api/v1/health`);
       const elapsed = Math.round(performance.now() - start);
       setLatency(elapsed);
       if (res.ok) {

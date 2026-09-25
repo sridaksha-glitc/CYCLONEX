@@ -14,52 +14,47 @@ import {
   Play,
   Activity,
   Layers,
-  Sparkles
+  Sparkles,
+  Info
 } from "lucide-react";
+import { 
+  BENCHMARK_SCENARIOS, 
+  BenchmarkScenario, 
+  analyzeCyclone, 
+  AnalyzeResponse, 
+  AnalyzeRequest 
+} from "@/lib/api";
 
 export default function AnalysisWorkbenchPage() {
-  const [lat, setLat] = useState<number>(13.5);
-  const [lon, setLon] = useState<number>(80.2);
-  const [temperature, setTemperature] = useState<number>(28.4);
-  const [humidity, setHumidity] = useState<number>(84);
+  const [activeScenarioId, setActiveScenarioId] = useState<string>("severe_storm");
+  const [dataMode, setDataMode] = useState<"DEMO" | "HISTORICAL" | "LIVE">("HISTORICAL");
+
+  const [lat, setLat] = useState<number>(21.4);
+  const [lon, setLon] = useState<number>(89.2);
+  const [temperature, setTemperature] = useState<number>(28.5);
+  const [humidity, setHumidity] = useState<number>(86);
   const [pressure, setPressure] = useState<number>(978);
-  const [windSpeed, setWindSpeed] = useState<number>(110);
-  const [windDirection, setWindDirection] = useState<number>(180);
+  const [windKts, setWindKts] = useState<number>(60);
+  const [windDirection, setWindDirection] = useState<number>(355);
+  const [stormName, setStormName] = useState<string>("Cyclone Remal");
   const [satelliteImage, setSatelliteImage] = useState<string | null>(null);
   const [forceLive, setForceLive] = useState<boolean>(false);
 
   const [loading, setLoading] = useState<boolean>(false);
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<AnalyzeResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Quick Presets
-  const presets = [
-    {
-      name: "Severe Cyclone (Bay of Bengal)",
-      lat: 13.5, lon: 80.2, temp: 28.4, hum: 84, pres: 978, wind: 110, dir: 180
-    },
-    {
-      name: "Invest 91B Disturbance",
-      lat: 12.8, lon: 85.4, temp: 29.5, hum: 82, pres: 998, wind: 55, dir: 315
-    },
-    {
-      name: "Extremely Severe Cyclone (Arabian Sea)",
-      lat: 22.8, lon: 68.1, temp: 30.1, hum: 88, pres: 954, wind: 165, dir: 45
-    },
-    {
-      name: "Calm Tropical Maritime (Baseline)",
-      lat: 10.0, lon: 75.0, temp: 27.5, hum: 70, pres: 1012, wind: 18, dir: 240
-    }
-  ];
-
-  const handleApplyPreset = (p: typeof presets[0]) => {
-    setLat(p.lat);
-    setLon(p.lon);
-    setTemperature(p.temp);
-    setHumidity(p.hum);
-    setPressure(p.pres);
-    setWindSpeed(p.wind);
-    setWindDirection(p.dir);
+  const handleApplyScenario = (scenario: BenchmarkScenario) => {
+    setActiveScenarioId(scenario.id);
+    setDataMode(scenario.data_mode);
+    setLat(scenario.payload.latitude);
+    setLon(scenario.payload.longitude);
+    setTemperature(scenario.payload.temperature ?? 28.5);
+    setHumidity(scenario.payload.humidity ?? 80);
+    setPressure(scenario.payload.pressure ?? 1000);
+    setWindKts(scenario.payload.wind_speed_kts ?? 30);
+    setWindDirection(scenario.payload.wind_direction ?? 340);
+    setStormName(scenario.payload.cyclone_name ?? "Benchmark Storm");
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -79,32 +74,25 @@ export default function AnalysisWorkbenchPage() {
     setError(null);
 
     try {
-      const payload = {
+      const payload: AnalyzeRequest = {
         latitude: lat,
         longitude: lon,
         temperature,
         humidity,
         pressure,
-        wind_speed: windSpeed,
+        wind_speed_kts: windKts,
+        wind_speed: Math.round(windKts * 1.852),
         wind_direction: windDirection,
+        cyclone_name: stormName,
         satellite_image: satelliteImage,
+        data_mode: dataMode,
         force_live_weather: forceLive
       };
 
-      const res = await fetch("http://localhost:8000/api/v1/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-
-      if (!res.ok) {
-        throw new Error(`Inference request failed with status: ${res.status}`);
-      }
-
-      const data = await res.json();
+      const data = await analyzeCyclone(payload);
       setResult(data);
     } catch (err: any) {
-      console.error(err);
+      console.error("Analysis invocation error:", err);
       setError(err.message || "Failed to complete AI multi-source inference.");
     } finally {
       setLoading(false);
@@ -125,23 +113,43 @@ export default function AnalysisWorkbenchPage() {
         </p>
       </div>
 
-      {/* Preset Chips */}
+      {/* 5 Canonical Benchmark Scenario Chips */}
       <div className="space-y-2">
-        <span className="text-xs font-mono text-slate-400 uppercase tracking-wider block">
-          Select Standard Benchmark Scenario:
-        </span>
-        <div className="flex flex-wrap gap-2">
-          {presets.map((p, idx) => (
-            <button
-              key={idx}
-              type="button"
-              onClick={() => handleApplyPreset(p)}
-              className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-cyan-500/50 text-xs font-medium text-slate-300 hover:text-white transition-all flex items-center gap-1.5"
-            >
-              <Sparkles className="h-3 w-3 text-cyan-400" />
-              <span>{p.name}</span>
-            </button>
-          ))}
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-mono text-slate-400 uppercase tracking-wider block">
+            Select Standard Benchmark Scenario (Phase 3 Deterministic Calibration):
+          </span>
+          <span className="text-xs font-mono text-cyan-400 font-bold">
+            DATA MODE: {dataMode}
+          </span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
+          {BENCHMARK_SCENARIOS.map((sc) => {
+            const isSelected = activeScenarioId === sc.id;
+            return (
+              <button
+                key={sc.id}
+                type="button"
+                onClick={() => handleApplyScenario(sc)}
+                className={`p-3 rounded-xl border text-left transition-all ${
+                  isSelected 
+                    ? "bg-cyan-950/70 border-cyan-500 shadow-lg shadow-cyan-500/10 text-white" 
+                    : "bg-slate-900/80 hover:bg-slate-850 border-slate-800 text-slate-300"
+                }`}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[11px] font-bold font-mono text-cyan-400">{sc.title}</span>
+                  <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-slate-950 border border-slate-800 text-slate-400">
+                    {sc.data_mode}
+                  </span>
+                </div>
+                <div className="text-[11px] font-semibold text-white truncate">{sc.category}</div>
+                <div className="text-[10px] text-slate-400 line-clamp-2 mt-1 leading-snug">
+                  {sc.description}
+                </div>
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -149,10 +157,39 @@ export default function AnalysisWorkbenchPage() {
         {/* Left Form (5 Cols) */}
         <div className="lg:col-span-5 space-y-6">
           <form onSubmit={handleRunAnalysis} className="glass-panel p-6 rounded-2xl border border-slate-800 space-y-5 shadow-2xl">
-            <h2 className="text-base font-bold text-white flex items-center gap-2 border-b border-slate-800 pb-3">
-              <Layers className="h-4 w-4 text-cyan-400" />
-              <span>Observation & Sensor Inputs</span>
-            </h2>
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h2 className="text-base font-bold text-white flex items-center gap-2">
+                <Layers className="h-4 w-4 text-cyan-400" />
+                <span>Observation & Sensor Inputs</span>
+              </h2>
+              <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800">
+                {(["DEMO", "HISTORICAL", "LIVE"] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setDataMode(mode)}
+                    className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold transition-all ${
+                      dataMode === mode 
+                        ? "bg-cyan-500 text-slate-950" 
+                        : "text-slate-400 hover:text-white"
+                    }`}
+                  >
+                    {mode}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Storm Label */}
+            <div>
+              <label className="text-[11px] font-mono text-slate-400 block mb-1">Storm / System Name</label>
+              <input
+                type="text"
+                value={stormName}
+                onChange={(e) => setStormName(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-xs font-mono text-white focus:outline-none focus:border-cyan-500"
+              />
+            </div>
 
             {/* Coordinates */}
             <div className="grid grid-cols-2 gap-4">
@@ -194,25 +231,25 @@ export default function AnalysisWorkbenchPage() {
                 />
               </div>
               <div>
-                <label className="text-[11px] font-mono text-slate-400 block mb-1">Wind Speed (km/h)</label>
+                <label className="text-[11px] font-mono text-slate-400 block mb-1">Sustained Wind (knots)</label>
                 <input
                   type="number"
                   step="1"
                   required
-                  value={windSpeed}
-                  onChange={(e) => setWindSpeed(parseFloat(e.target.value))}
+                  value={windKts}
+                  onChange={(e) => setWindKts(parseFloat(e.target.value))}
                   className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-xs font-mono text-white focus:outline-none focus:border-cyan-500"
                 />
                 <span className="text-[10px] text-slate-500 font-mono mt-0.5 block">
-                  ~{(windSpeed / 1.852).toFixed(1)} knots
+                  ~{(windKts * 1.852).toFixed(1)} km/h
                 </span>
               </div>
             </div>
 
-            {/* Temp & Humidity */}
-            <div className="grid grid-cols-2 gap-4">
+            {/* Temp, Humidity & Heading */}
+            <div className="grid grid-cols-3 gap-3">
               <div>
-                <label className="text-[11px] font-mono text-slate-400 block mb-1">Sea Surface Temp (°C)</label>
+                <label className="text-[11px] font-mono text-slate-400 block mb-1">SST (°C)</label>
                 <input
                   type="number"
                   step="0.1"
@@ -222,12 +259,22 @@ export default function AnalysisWorkbenchPage() {
                 />
               </div>
               <div>
-                <label className="text-[11px] font-mono text-slate-400 block mb-1">Relative Humidity (%)</label>
+                <label className="text-[11px] font-mono text-slate-400 block mb-1">Humidity (%)</label>
                 <input
                   type="number"
                   step="1"
                   value={humidity}
                   onChange={(e) => setHumidity(parseFloat(e.target.value))}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-xs font-mono text-white focus:outline-none focus:border-cyan-500"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-mono text-slate-400 block mb-1">Direction (°)</label>
+                <input
+                  type="number"
+                  step="5"
+                  value={windDirection}
+                  onChange={(e) => setWindDirection(parseFloat(e.target.value))}
                   className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-xs font-mono text-white focus:outline-none focus:border-cyan-500"
                 />
               </div>
@@ -287,7 +334,7 @@ export default function AnalysisWorkbenchPage() {
               ) : (
                 <>
                   <Play className="h-4 w-4 text-slate-950" />
-                  <span>Execute AI Multi-Source Analysis</span>
+                  <span>RUN AI ANALYSIS</span>
                 </>
               )}
             </button>
@@ -308,7 +355,7 @@ export default function AnalysisWorkbenchPage() {
               <Cpu className="h-10 w-10 text-slate-600 mx-auto animate-pulse" />
               <h3 className="text-lg font-bold text-white">Inference Engine Ready</h3>
               <p className="text-slate-400 text-xs max-w-md mx-auto leading-relaxed">
-                Configure coordinates and atmospheric observations on the left or select a preset scenario, then click <strong>Execute AI Multi-Source Analysis</strong>.
+                Configure coordinates and atmospheric observations on the left or select a preset scenario, then click <strong>RUN AI ANALYSIS</strong> to execute live inference.
               </p>
             </div>
           )}
@@ -354,14 +401,50 @@ export default function AnalysisWorkbenchPage() {
                   <div className="bg-slate-950/80 p-3 rounded-xl border border-slate-800/80">
                     <span className="text-[10px] text-slate-500 block uppercase">MODEL B: CONFIDENCE</span>
                     <strong className="text-cyan-300 text-sm">{(result.classification_confidence * 100).toFixed(0)}%</strong>
-                    <div className="text-[10px] text-slate-400 mt-1">IMD Standards Compliant</div>
+                    <div className="text-[10px] text-slate-400 mt-1">IMD Standards Tier {result.classification_tier}</div>
                   </div>
 
                   <div className="bg-slate-950/80 p-3 rounded-xl border border-slate-800/80">
                     <span className="text-[10px] text-slate-500 block uppercase">MODEL C: 12H FORECAST</span>
-                    <strong className="text-amber-300 text-sm">{result.predicted_wind_speed} km/h</strong>
+                    <strong className="text-amber-300 text-sm">{result.predicted_wind_speed_kts} kts</strong>
                     <div className="text-[10px] text-slate-400 mt-1">Trend: {result.trend}</div>
                   </div>
+                </div>
+              </div>
+
+              {/* Decoupled Prototype Risk Index Breakdown */}
+              <div className="glass-panel p-6 rounded-2xl border border-slate-800 space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                  <div className="flex items-center gap-2">
+                    <ShieldAlert className="h-5 w-5 text-amber-400" />
+                    <h3 className="text-base font-bold text-white">Prototype Risk Index (PRI: {result.risk_score}/100)</h3>
+                  </div>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-900 text-slate-400 border border-slate-800">
+                    HEURISTIC MODEL
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {result.risk?.contributing_factors?.map((f, idx) => (
+                    <div key={idx} className="p-3 bg-slate-950/70 border border-slate-800/80 rounded-xl space-y-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-semibold text-slate-300">{f.factor}</span>
+                        <span className="font-mono font-bold text-cyan-400">{f.score.toFixed(1)} / {f.max_score}</span>
+                      </div>
+                      <div className="text-[11px] font-mono text-slate-400">{f.metric}</div>
+                      <div className="w-full bg-slate-900 h-1.5 rounded-full overflow-hidden mt-1">
+                        <div 
+                          className="h-full bg-amber-500 rounded-full"
+                          style={{ width: `${Math.min(100, Math.round((f.score / f.max_score) * 100))}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="p-3 rounded-xl bg-amber-950/20 border border-amber-800/30 text-[11px] text-amber-300/90 flex items-start gap-2">
+                  <Info className="h-4 w-4 shrink-0 mt-0.5 text-amber-400" />
+                  <p>{result.risk?.disclaimer || result.disclaimer}</p>
                 </div>
               </div>
 
@@ -376,7 +459,7 @@ export default function AnalysisWorkbenchPage() {
                 </div>
 
                 <div className="space-y-3">
-                  {result.explanation?.map((item: any, idx: number) => {
+                  {result.explanation?.map((item, idx) => {
                     const isEscalating = item.impact === "ESCALATING";
                     const isMitigating = item.impact === "MITIGATING";
                     const badgeColor = isEscalating
@@ -414,25 +497,27 @@ export default function AnalysisWorkbenchPage() {
 
               {/* Multi-Horizon Trajectory Table */}
               <div className="glass-panel p-6 rounded-2xl border border-slate-800 space-y-3">
-                <h4 className="text-sm font-bold text-white">Multi-Horizon Model C Trajectory Forecast</h4>
+                <h4 className="text-sm font-bold text-white">Multi-Horizon Model C Trajectory Forecast (+6h, +12h, +24h)</h4>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs font-mono">
                     <thead className="bg-slate-900/80 text-slate-400 border-b border-slate-800">
                       <tr>
                         <th className="py-2 px-3">Lead Time</th>
                         <th className="py-2 px-3">Position</th>
-                        <th className="py-2 px-3">Wind Speed</th>
-                        <th className="py-2 px-3">Pressure</th>
+                        <th className="py-2 px-3">Sustained Wind</th>
+                        <th className="py-2 px-3">Central Pressure</th>
+                        <th className="py-2 px-3">Category</th>
                         <th className="py-2 px-3">Trend</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800/60">
-                      {result.multi_horizon_predictions?.map((m: any, idx: number) => (
+                      {(result.multi_horizon_forecast || result.multi_horizon_predictions)?.map((m, idx) => (
                         <tr key={idx}>
                           <td className="py-2.5 px-3 font-bold text-cyan-400">+{m.lead_time_hours} Hours</td>
                           <td className="py-2.5 px-3 text-slate-300">{m.predicted_latitude}°N, {m.predicted_longitude}°E</td>
-                          <td className="py-2.5 px-3 text-amber-300 font-bold">{m.predicted_wind_speed_kmh} km/h</td>
+                          <td className="py-2.5 px-3 text-amber-300 font-bold">{m.predicted_wind_speed_kts} kts</td>
                           <td className="py-2.5 px-3 text-slate-200">{m.predicted_pressure_hpa} hPa</td>
+                          <td className="py-2.5 px-3 text-cyan-300">{m.classification}</td>
                           <td className="py-2.5 px-3 text-slate-300">{m.trend}</td>
                         </tr>
                       ))}
@@ -441,13 +526,13 @@ export default function AnalysisWorkbenchPage() {
                 </div>
               </div>
 
-              {/* Data Provenance & Disclaimer */}
+              {/* Data Provenance & Transparency */}
               <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 text-[11px] text-slate-400 space-y-1">
                 <div className="flex items-center gap-1.5 font-bold text-slate-300">
                   <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
                   <span>Data Provenance Attribution</span>
                 </div>
-                <div>Sources: {result.data_sources?.join(" • ")}</div>
+                <div>Sources: {(result.sources || result.data_sources)?.join(" • ")}</div>
                 <div className="text-slate-500 font-mono text-[10px] pt-1">
                   DISCLAIMER: {result.disclaimer}
                 </div>

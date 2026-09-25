@@ -10,6 +10,37 @@ class FeatureExplanation(BaseModel):
     impact: str = Field(..., description="ESCALATING, MITIGATING, or NEUTRAL")
     description: str = Field(..., description="Human-interpretable explanation of the contribution")
 
+class RiskFactor(BaseModel):
+    factor: str
+    score: float
+    max_score: float
+    metric: str
+
+class RiskAssessment(BaseModel):
+    risk_score: int
+    risk_level: str
+    contributing_factors: List[RiskFactor] = []
+    label: str = "CYCLONEX PROTOTYPE RISK INDEX"
+    disclaimer: str = (
+        "NOT AN OFFICIAL METEOROLOGICAL WARNING. The CYCLONEX Prototype Risk Index is a "
+        "decision-support heuristic engineered exclusively for research and simulation drills. "
+        "It does NOT replace official warning bulletins from IMD, WMO, or RSMC."
+    )
+
+class ForecastHorizon(BaseModel):
+    lead_time_hours: int
+    predicted_wind_speed_kts: float
+    predicted_wind_speed_kmh: float
+    predicted_pressure_hpa: float
+    predicted_latitude: float
+    predicted_longitude: float
+    classification: str
+    trend: str
+    confidence: float
+
+# Backwards compatibility alias
+MultiHorizonPrediction = ForecastHorizon
+
 # --- Primary Analysis Schema ---
 class AnalyzeRequest(BaseModel):
     latitude: float = Field(..., ge=-90.0, le=90.0, description="Latitude in decimal degrees (-90 to +90)")
@@ -18,43 +49,42 @@ class AnalyzeRequest(BaseModel):
     humidity: Optional[float] = Field(None, ge=0.0, le=100.0, description="Relative humidity percentage (0-100)")
     pressure: Optional[float] = Field(None, ge=850.0, le=1050.0, description="Atmospheric pressure in hPa")
     wind_speed: Optional[float] = Field(None, ge=0.0, description="Sustained wind speed in km/h")
+    wind_speed_kts: Optional[float] = Field(None, ge=0.0, description="Sustained wind speed in knots")
     wind_direction: Optional[float] = Field(None, ge=0.0, le=360.0, description="Wind heading in degrees (0-360)")
     satellite_image: Optional[str] = Field(None, description="Base64-encoded satellite image or image URL")
+    satellite_image_path: Optional[str] = Field(None, description="Local path to satellite image file")
+    cyclone_id: Optional[str] = Field(None, description="Associated cyclone UUID or identifier")
     cyclone_name: Optional[str] = Field(None, description="Optional label or disturbance identifier")
+    data_mode: str = Field("DEMO", description="Data mode: LIVE, HISTORICAL, or DEMO")
     force_live_weather: bool = Field(False, description="Attempt live OpenWeather lookup for provided lat/lon")
-
-class MultiHorizonPrediction(BaseModel):
-    lead_time_hours: int
-    predicted_wind_speed_kmh: float
-    predicted_wind_speed_kts: float
-    predicted_pressure_hpa: float
-    predicted_latitude: float
-    predicted_longitude: float
-    classification: str
-    trend: str
-    confidence: float
 
 class AnalyzeResponse(BaseModel):
     cyclone_detected: bool
     cyclone_probability: float
     classification: str
     classification_confidence: float
-    predicted_wind_speed: float  # In km/h as per primary response schema
+    classification_tier: int = 0
+    predicted_wind_speed: float  # In km/h for backwards compatibility
     predicted_wind_speed_kts: float
     predicted_pressure_hpa: float
     trend: str                  # INTENSIFYING | STEADY | WEAKENING
+    rapid_intensification: bool = False
+    multi_horizon_forecast: List[ForecastHorizon] = []
+    multi_horizon_predictions: List[ForecastHorizon] = []  # Alias
+    risk: RiskAssessment
     risk_score: int             # 0 to 100
     risk_level: str             # LOW | MODERATE | HIGH | EXTREME
     explanation: List[FeatureExplanation]
-    model_version: str
-    data_mode: str              # LIVE | DEMO | HISTORICAL
-    multi_horizon_predictions: List[MultiHorizonPrediction]
-    data_sources: List[str]
+    model_version: str = "v1.0-production"
+    data_mode: str = "DEMO"     # LIVE | DEMO | HISTORICAL
+    sources: List[str] = []
+    data_sources: List[str] = [] # Alias
     timestamp: str
     disclaimer: str = (
-        "Non-operational research prototype. This decision-support index does not replace "
-        "official meteorological warnings from IMD, WMO, or national weather agencies."
+        "NOT AN OFFICIAL METEOROLOGICAL WARNING. The CYCLONEX Prototype Risk Index is a "
+        "decision-support heuristic engineered exclusively for research and simulation drills."
     )
+
 
 # --- Sub-model Schemas ---
 class DetectRequest(BaseModel):

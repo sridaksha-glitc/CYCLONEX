@@ -3,28 +3,26 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Wind, Search, Filter, ArrowUpRight, Compass, ShieldAlert, History } from "lucide-react";
+import { fetchCyclones, CycloneItem } from "@/lib/api";
 
 export default function CyclonesListPage() {
-  const [cyclones, setCyclones] = useState<any[]>([]);
+  const [cyclones, setCyclones] = useState<CycloneItem[]>([]);
   const [filterStatus, setFilterStatus] = useState<string>("ALL");
   const [search, setSearch] = useState<string>("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchCyclones() {
+    async function load() {
       try {
-        const res = await fetch("http://localhost:8000/api/v1/cyclones");
-        if (res.ok) {
-          const data = await res.json();
-          setCyclones(data.cyclones || []);
-        }
+        const data = await fetchCyclones();
+        setCyclones(data.cyclones || []);
       } catch (err) {
         console.error("Using offline mock:", err);
       } finally {
         setLoading(false);
       }
     }
-    fetchCyclones();
+    load();
   }, []);
 
   const filtered = cyclones.filter((c) => {

@@ -8,48 +8,50 @@ import {
   ShieldAlert, 
   AlertTriangle, 
   Activity, 
-  Eye, 
   Compass, 
-  ArrowUpRight, 
   Play, 
   CheckCircle2,
   RefreshCw,
-  Cpu
+  Cpu,
+  Info,
+  Clock,
+  TrendingUp
 } from "lucide-react";
 import { CycloneMap } from "@/components/CycloneMap";
+import { 
+  fetchCyclones, 
+  fetchAlerts, 
+  analyzeCyclone, 
+  CycloneItem, 
+  AlertItem, 
+  AnalyzeResponse 
+} from "@/lib/api";
 
 export default function DashboardPage() {
-  const [cyclones, setCyclones] = useState<any[]>([]);
-  const [selectedCyclone, setSelectedCyclone] = useState<any>(null);
-  const [alerts, setAlerts] = useState<any[]>([]);
+  const [cyclones, setCyclones] = useState<CycloneItem[]>([]);
+  const [selectedCyclone, setSelectedCyclone] = useState<CycloneItem | null>(null);
+  const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
-  const [analysisResult, setAnalysisResult] = useState<any>(null);
+  const [analysisResult, setAnalysisResult] = useState<AnalyzeResponse | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<string>("");
 
-  // Load initial active storms and alerts from backend (or fallback)
   useEffect(() => {
     async function loadData() {
       try {
-        const [cycRes, alertRes] = await Promise.all([
-          fetch("http://localhost:8000/api/v1/cyclones"),
-          fetch("http://localhost:8000/api/v1/alerts")
+        const [cycData, alertData] = await Promise.all([
+          fetchCyclones(),
+          fetchAlerts()
         ]);
-
-        if (cycRes.ok) {
-          const cycData = await cycRes.json();
-          setCyclones(cycData.cyclones || []);
-          if (cycData.cyclones?.length > 0) {
-            setSelectedCyclone(cycData.cyclones[0]);
-          }
+        setCyclones(cycData.cyclones || []);
+        if (cycData.cyclones?.length > 0) {
+          setSelectedCyclone(cycData.cyclones[0]);
         }
-        if (alertRes.ok) {
-          const alData = await alertRes.json();
-          setAlerts(alData.alerts || []);
-        }
+        setAlerts(alertData.alerts || []);
+        setLastUpdated(new Date().toLocaleTimeString());
       } catch (err) {
-        console.warn("Could not reach backend, using offline baseline:", err);
-        // Offline benchmark data
-        const fallback = [
+        console.warn("Could not reach backend API, using initial benchmark store:", err);
+        const fallback: CycloneItem[] = [
           {
             id: "a1b2c3d4-e5f6-7890-abcd-ef1234567801",
             code: "BOB-01-2024",
@@ -65,7 +67,9 @@ export default function DashboardPage() {
             movement_direction_deg: 355.0,
             risk_level: "HIGH",
             risk_score: 78,
-            data_mode: "HISTORICAL"
+            data_mode: "HISTORICAL",
+            started_at: "2024-05-24T12:00:00Z",
+            last_updated_at: "2024-05-26T18:00:00Z"
           },
           {
             id: "a1b2c3d4-e5f6-7890-abcd-ef1234567804",
@@ -82,11 +86,14 @@ export default function DashboardPage() {
             movement_direction_deg: 315.0,
             risk_level: "MODERATE",
             risk_score: 46,
-            data_mode: "DEMO"
+            data_mode: "DEMO",
+            started_at: "2026-09-25T12:00:00Z",
+            last_updated_at: "2026-09-25T12:00:00Z"
           }
         ];
         setCyclones(fallback);
         setSelectedCyclone(fallback[0]);
+        setLastUpdated(new Date().toLocaleTimeString());
       } finally {
         setLoading(false);
       }
@@ -98,23 +105,20 @@ export default function DashboardPage() {
     if (!selectedCyclone) return;
     setAnalyzing(true);
     try {
-      const res = await fetch("http://localhost:8000/api/v1/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          latitude: selectedCyclone.current_lat,
-          longitude: selectedCyclone.current_lon,
-          pressure: selectedCyclone.central_pressure_hpa,
-          wind_speed: selectedCyclone.max_sustained_wind_kts * 1.852,
-          cyclone_name: selectedCyclone.name
-        })
+      const data = await analyzeCyclone({
+        latitude: selectedCyclone.current_lat,
+        longitude: selectedCyclone.current_lon,
+        pressure: selectedCyclone.central_pressure_hpa,
+        wind_speed_kts: selectedCyclone.max_sustained_wind_kts,
+        wind_speed: Math.round(selectedCyclone.max_sustained_wind_kts * 1.852),
+        wind_direction: selectedCyclone.movement_direction_deg,
+        cyclone_name: selectedCyclone.name,
+        cyclone_id: selectedCyclone.id,
+        data_mode: selectedCyclone.data_mode
       });
-      if (res.ok) {
-        const data = await res.json();
-        setAnalysisResult(data);
-      }
+      setAnalysisResult(data);
     } catch (e) {
-      console.error(e);
+      console.error("Instant analysis failed:", e);
     } finally {
       setAnalyzing(false);
     }
@@ -135,6 +139,9 @@ export default function DashboardPage() {
     data_mode: c.data_mode
   }));
 
+  const activeCount = cyclones.filter(c => c.status === "ACTIVE").length;
+  const highRiskCount = cyclones.filter(c => c.risk_score >= 60).length;
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
       {/* Hero / Strategic Alert Bar */}
@@ -143,15 +150,25 @@ export default function DashboardPage() {
 
         <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div className="space-y-2 max-w-3xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-950 border border-cyan-700/60 text-cyan-300 text-xs font-mono font-medium">
-              <Activity className="h-3.5 w-3.5 text-cyan-400 animate-pulse" />
-              <span>EARLY CYCLONIC RISK ASSESSMENT ENGINE</span>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-950 border border-cyan-700/60 text-cyan-300 text-xs font-mono font-medium">
+                <Activity className="h-3.5 w-3.5 text-cyan-400 animate-pulse" />
+                <span>AI/ML TROPICAL CYCLONE INTELLIGENCE</span>
+              </span>
+              <span className="px-2.5 py-0.5 rounded-full bg-slate-950 border border-slate-800 text-slate-400 text-[11px] font-mono">
+                System Status: <strong className="text-emerald-400">ONLINE</strong>
+              </span>
+              {lastUpdated && (
+                <span className="px-2.5 py-0.5 rounded-full bg-slate-950 border border-slate-800 text-slate-400 text-[11px] font-mono">
+                  Sync: {lastUpdated}
+                </span>
+              )}
             </div>
             <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-white">
-              Multi-Source AI Cyclone Intelligence
+              CYCLONEX Command Center
             </h1>
             <p className="text-slate-300 text-sm leading-relaxed">
-              Fusing INSAT-3D satellite infrared vision, in-situ OpenWeather surface telemetry, and authoritative IBTrACS climatology to detect, classify, and forecast tropical cyclone trajectories in the North Indian Ocean basin.
+              Multi-source AI platform fusing INSAT-3D satellite infrared vision, OpenWeather surface meteorology, and authoritative NOAA IBTrACS climatology for real-time identification, IMD classification, trajectory prediction, and early risk assessment.
             </p>
           </div>
 
@@ -168,7 +185,7 @@ export default function DashboardPage() {
               className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-semibold text-sm transition-all flex items-center gap-2"
             >
               <ShieldAlert className="h-4 w-4 text-amber-400" />
-              <span>View Alert Center</span>
+              <span>Alert Center ({alerts.length})</span>
             </Link>
           </div>
         </div>
@@ -183,7 +200,7 @@ export default function DashboardPage() {
             <Wind className="h-5 w-5 text-cyan-400" />
           </div>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-3xl font-black text-white">{cyclones.filter(c => c.status === "ACTIVE").length}</span>
+            <span className="text-3xl font-black text-white">{activeCount}</span>
             <span className="text-xs font-semibold text-emerald-400">Monitored</span>
           </div>
           <p className="mt-1 text-[11px] text-slate-500">Bay of Bengal & Arabian Sea basins</p>
@@ -192,16 +209,16 @@ export default function DashboardPage() {
         {/* KPI 2 */}
         <div className="glass-panel p-5 rounded-xl border border-slate-800 relative overflow-hidden">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-mono text-slate-400">HIGHEST PROTOTYPE RISK</span>
+            <span className="text-xs font-mono text-slate-400">HIGH-RISK SYSTEMS</span>
             <Gauge className="h-5 w-5 text-rose-400" />
           </div>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-3xl font-black text-rose-400">78</span>
+            <span className="text-3xl font-black text-rose-400">{highRiskCount}</span>
             <span className="text-xs font-bold text-rose-400 px-2 py-0.5 rounded bg-rose-950/80 border border-rose-800">
-              HIGH RISK
+              PRI &ge; 60
             </span>
           </div>
-          <p className="mt-1 text-[11px] text-slate-500">Cyclone Remal (Coastal Landfall Vector)</p>
+          <p className="mt-1 text-[11px] text-slate-500">Systems crossing emergency threshold</p>
         </div>
 
         {/* KPI 3 */}
@@ -211,10 +228,14 @@ export default function DashboardPage() {
             <Wind className="h-5 w-5 text-amber-400" />
           </div>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-3xl font-black text-amber-300">60 kts</span>
-            <span className="text-xs font-mono text-slate-400">(111 km/h)</span>
+            <span className="text-3xl font-black text-amber-300">
+              {selectedCyclone ? `${selectedCyclone.max_sustained_wind_kts} kts` : "--"}
+            </span>
+            <span className="text-xs font-mono text-slate-400">
+              ({selectedCyclone ? Math.round(selectedCyclone.max_sustained_wind_kts * 1.852) : 0} km/h)
+            </span>
           </div>
-          <p className="mt-1 text-[11px] text-slate-500">Classification: Severe Cyclonic Storm</p>
+          <p className="mt-1 text-[11px] text-slate-500 truncate">{selectedCyclone?.classification || "Active Vortex"}</p>
         </div>
 
         {/* KPI 4 */}
@@ -309,22 +330,24 @@ export default function DashboardPage() {
               </div>
               <div className="flex justify-between py-1.5 border-b border-slate-800/60">
                 <span className="text-slate-400">Max Sustained Winds</span>
-                <strong className="text-white">{selectedCyclone?.max_sustained_wind_kts} kts ({Math.round(selectedCyclone?.max_sustained_wind_kts * 1.852)} km/h)</strong>
+                <strong className="text-white">
+                  {selectedCyclone?.max_sustained_wind_kts} kts ({selectedCyclone ? Math.round(selectedCyclone.max_sustained_wind_kts * 1.852) : 0} km/h)
+                </strong>
               </div>
               <div className="flex justify-between py-1.5 border-b border-slate-800/60">
-                <span className="text-slate-400">Central Barometric Pressure</span>
+                <span className="text-slate-400">Central Pressure</span>
                 <strong className="text-white">{selectedCyclone?.central_pressure_hpa} hPa</strong>
               </div>
               <div className="flex justify-between py-1.5 border-b border-slate-800/60">
-                <span className="text-slate-400">Present Coordinates</span>
+                <span className="text-slate-400">Coordinates</span>
                 <strong className="text-slate-300">{selectedCyclone?.current_lat}°N, {selectedCyclone?.current_lon}°E</strong>
               </div>
               <div className="flex justify-between py-1.5 border-b border-slate-800/60">
-                <span className="text-slate-400">Forward Movement</span>
+                <span className="text-slate-400">Movement Vector</span>
                 <strong className="text-slate-300">{selectedCyclone?.movement_speed_kmh} km/h @ {selectedCyclone?.movement_direction_deg}°</strong>
               </div>
               <div className="flex justify-between py-1.5">
-                <span className="text-slate-400">Data Mode & Provenance</span>
+                <span className="text-slate-400">Data Mode</span>
                 <span className="text-amber-400 font-bold">{selectedCyclone?.data_mode} DATA</span>
               </div>
             </div>
@@ -367,17 +390,39 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
+                {/* Trajectory progression */}
+                <div className="space-y-1.5 pt-1 border-t border-slate-800">
+                  <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider block">
+                    Model C Multi-Horizon Forecast:
+                  </span>
+                  <div className="grid grid-cols-3 gap-1 text-center font-mono text-[10px]">
+                    {(analysisResult.multi_horizon_forecast || analysisResult.multi_horizon_predictions)?.map((h, i) => (
+                      <div key={i} className="p-1.5 bg-slate-900/90 rounded border border-slate-800">
+                        <div className="text-cyan-400 font-bold">+{h.lead_time_hours}h</div>
+                        <div className="text-white">{h.predicted_wind_speed_kts} kts</div>
+                        <div className="text-slate-400">{h.predicted_pressure_hpa} hPa</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
                 {/* Explainable AI breakdown preview */}
-                <div className="text-[11px] text-slate-300">
-                  <span className="text-slate-400 block mb-1 font-mono">PRIMARY CONTRIBUTING FACTORS:</span>
+                <div className="text-[11px] text-slate-300 pt-1 border-t border-slate-800">
+                  <span className="text-slate-400 block mb-1 font-mono">PRIMARY XAI ATTRIBUTIONS:</span>
                   <ul className="space-y-1">
-                    {analysisResult.explanation?.slice(0, 2).map((exp: any, i: number) => (
+                    {analysisResult.explanation?.slice(0, 2).map((exp, i) => (
                       <li key={i} className="flex items-start gap-1.5 text-slate-300">
                         <span className="text-cyan-400 font-bold">•</span>
                         <span><strong>{exp.feature}</strong>: {exp.description}</span>
                       </li>
                     ))}
                   </ul>
+                </div>
+
+                {/* Disclaimer */}
+                <div className="p-2 rounded bg-amber-950/20 border border-amber-800/30 text-[10px] text-amber-300/80 flex items-start gap-1.5">
+                  <Info className="h-3 w-3 shrink-0 mt-0.5 text-amber-400" />
+                  <span>{analysisResult.risk?.disclaimer || analysisResult.disclaimer}</span>
                 </div>
               </div>
             )}
