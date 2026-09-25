@@ -1,0 +1,22 @@
+meta {
+  name: Classify Cyclone
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/api/v1/classify
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "wind_speed_kts": 55.0,
+    "central_pressure_hpa": 985.0,
+    "cdo_symmetry": 0.78,
+    "cloud_top_temp_k": 208.0,
+    "latitude": 15.0,
+    "longitude": 85.0
+  }
+}

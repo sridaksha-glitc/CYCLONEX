@@ -1,0 +1,21 @@
+meta {
+  name: Detect Cyclone
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/v1/detect
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "latitude": 13.5,
+    "longitude": 80.2,
+    "image_url": null,
+    "infrared_brightness_temp_k": 210.5,
+    "cdo_symmetry": 0.85
+  }
+}

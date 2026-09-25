@@ -1,0 +1,25 @@
+meta {
+  name: Predict Cyclone
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/api/v1/predict
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "latitude": 21.4,
+    "longitude": 89.2,
+    "wind_speed_kts": 60.0,
+    "pressure_hpa": 978.0,
+    "movement_speed_kmh": 16.0,
+    "movement_direction_deg": 355.0,
+    "delta_pressure_6h": -4.0,
+    "delta_wind_6h": 8.0,
+    "lead_time_hours": 12
+  }
+}

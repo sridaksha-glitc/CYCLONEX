@@ -1,0 +1,25 @@
+meta {
+  name: Trigger Alert
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/api/v1/alerts
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "cyclone_name": "Cyclone Remal",
+    "classification": "Severe Cyclonic Storm",
+    "severity": "WARNING",
+    "risk_score": 78,
+    "risk_level": "HIGH",
+    "wind_speed_kts": 60.0,
+    "pressure_hpa": 978.0,
+    "latitude": 21.4,
+    "longitude": 89.2
+  }
+}

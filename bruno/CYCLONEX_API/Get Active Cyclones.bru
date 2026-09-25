@@ -1,0 +1,11 @@
+meta {
+  name: Get Active Cyclones
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/api/v1/cyclones?status=ACTIVE
+  body: none
+  auth: none
+}

@@ -1,0 +1,24 @@
+meta {
+  name: Analyze Multi-Source
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/v1/analyze
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "latitude": 13.5,
+    "longitude": 80.2,
+    "temperature": 28.4,
+    "humidity": 84,
+    "pressure": 978,
+    "wind_speed": 110,
+    "wind_direction": 180,
+    "satellite_image": null
+  }
+}

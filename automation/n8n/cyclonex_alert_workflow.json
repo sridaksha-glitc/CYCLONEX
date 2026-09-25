@@ -1,0 +1,126 @@
+{
+  "name": "CYCLONEX Automated Cyclone Early Alert Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "cyclonex-alert",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "e0e1a1b2-1111-4000-8000-000000000001",
+      "name": "Webhook: Cyclone Alert Ingest",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "cyclonex-alert"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.body.risk_score }}",
+              "operation": "largerEqual",
+              "value2": 60
+            }
+          ]
+        }
+      },
+      "id": "e0e1a1b2-1111-4000-8000-000000000002",
+      "name": "Filter: Risk Score >= 60 (High/Extreme)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const alert = $json.body;\nconst timestamp = new Date().toISOString();\n\nconst formattedMessage = `🚨 [CYCLONEX EMERGENCY ALERT]\\n` +\n  `Cyclone: ${alert.cyclone_name || 'Unassigned / Invest Cell'}\\n` +\n  `Classification: ${alert.classification || 'Severe Cyclone'}\\n` +\n  `Severity: ${alert.severity || 'WARNING'}\\n` +\n  `Prototype Risk Index: ${alert.risk_score} / 100 (${alert.risk_level})\\n` +\n  `Wind Speed: ${alert.wind_speed_kts || alert.wind_speed} kts\\n` +\n  `Central Pressure: ${alert.pressure_hpa || alert.pressure} hPa\\n` +\n  `Location: Lat ${alert.latitude}, Lon ${alert.longitude}\\n` +\n  `Timestamp: ${timestamp}\\n` +\n  `Notice: Non-operational prototype decision support index.`;\n\nreturn [{\n  json: {\n    alert_id: alert.alert_id || 'ALT-' + Date.now(),\n    risk_score: alert.risk_score,\n    risk_level: alert.risk_level,\n    payload_text: formattedMessage,\n    channels: ['webhook_dispatch', 'broadcast_dashboard']\n  }\n}];"
+      },
+      "id": "e0e1a1b2-1111-4000-8000-000000000003",
+      "name": "Format Emergency Broadcast",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const alert = $json.body;\nreturn [{\n  json: {\n    status: 'ADVISORY_LOGGED',\n    message: 'Advisory logged for routine monitoring. Risk score below immediate critical broadcast threshold.',\n    risk_score: alert.risk_score\n  }\n}];"
+      },
+      "id": "e0e1a1b2-1111-4000-8000-000000000004",
+      "name": "Format Routine Advisory",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, 420]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "e0e1a1b2-1111-4000-8000-000000000005",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [980, 300]
+    }
+  ],
+  "connections": {
+    "Webhook: Cyclone Alert Ingest": {
+      "main": [
+        [
+          {
+            "node": "Filter: Risk Score >= 60 (High/Extreme)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter: Risk Score >= 60 (High/Extreme)": {
+      "main": [
+        [
+          {
+            "node": "Format Emergency Broadcast",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Routine Advisory",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Emergency Broadcast": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Routine Advisory": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
