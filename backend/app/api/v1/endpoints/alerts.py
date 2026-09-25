@@ -12,9 +12,10 @@ async def trigger_manual_alert(req: AlertRequest):
     Triggers an automated alert and dispatches it to configured channels (including n8n).
     """
     res = await alert_service.dispatch_alert(req.model_dump())
+    status_str = res.get("status") or ("DISPATCHED" if res.get("n8n_dispatched") else "LOGGED_LOCALLY")
     return AlertResponse(
         id=res["id"],
-        status="DISPATCHED",
+        status=status_str,
         severity=res["severity"],
         title=res["title"],
         message=res["message"],
@@ -23,6 +24,7 @@ async def trigger_manual_alert(req: AlertRequest):
         channels=res["channels"],
         dispatched_at=res["dispatched_at"]
     )
+
 
 @router.get("/alerts")
 def list_alerts():

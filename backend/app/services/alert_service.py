@@ -40,6 +40,7 @@ class AlertService:
             "severity": alert_payload.get("severity", "WARNING"),
             "risk_score": alert_payload.get("risk_score", 60),
             "risk_level": alert_payload.get("risk_level", "HIGH"),
+            "status": "SENT" if n8n_dispatched else "LOGGED_LOCALLY",
             "n8n_dispatched": n8n_dispatched,
             "channels": ["n8n_webhook", "dashboard"] if n8n_dispatched else ["dashboard_local"]
         }

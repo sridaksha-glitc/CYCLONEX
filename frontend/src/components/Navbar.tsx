@@ -13,6 +13,7 @@ import {
   Server
 } from "lucide-react";
 import { useState, useEffect } from "react";
+import { API_BASE_URL } from "@/lib/api";
 
 export function Navbar() {
   const pathname = usePathname();
@@ -23,7 +24,7 @@ export function Navbar() {
   useEffect(() => {
     async function checkHealth() {
       try {
-        const res = await fetch("http://localhost:8000/health");
+        const res = await fetch(`${API_BASE_URL}/health`);
         if (res.ok) {
           const data = await res.json();
           setSystemOnline(true);
@@ -69,14 +70,15 @@ export function Navbar() {
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold tracking-wide border transition-all">
             {dataMode === "LIVE" ? (
-              <span className="bg-emerald-950/80 border-emerald-500/50 text-emerald-300 px-2 py-0.5 rounded-full border">
-                🟢 LIVE WEATHER MODE
+              <span className="bg-emerald-950/80 border-emerald-500/50 text-emerald-300 px-2.5 py-0.5 rounded-full border font-mono font-bold">
+                DATA MODE: LIVE TELEMETRY
               </span>
             ) : (
-              <span className="bg-amber-950/80 border-amber-500/50 text-amber-300 px-2 py-0.5 rounded-full border flex items-center gap-1">
-                <span>⚠️</span> DEMONSTRATION DATA MODE
+              <span className="bg-amber-950/90 border-amber-500 text-amber-300 px-2.5 py-0.5 rounded-full border flex items-center gap-1 font-mono font-bold">
+                DATA MODE: DEMONSTRATION
               </span>
             )}
+
           </div>
           <span className="text-slate-500 hidden md:inline text-[11px]">
             *Prototype Decision-Support Index — Not an official warning

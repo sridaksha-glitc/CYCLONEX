@@ -77,18 +77,34 @@ class ModelRegistry:
 
     def load_detector(self) -> CycloneDetector:
         path = os.path.join(self.artifacts_dir, "detector_v1.joblib")
-        clf = joblib.load(path) if os.path.exists(path) else None
+        if not os.path.exists(path):
+            raise FileNotFoundError(
+                f"Required model artifact 'detector_v1.joblib' missing from {self.artifacts_dir}. "
+                "Run 'python -m ml.models.trainer' to generate baseline model artifacts."
+            )
+        clf = joblib.load(path)
         return CycloneDetector(classifier_model=clf)
 
     def load_classifier(self) -> CycloneClassifier:
         path = os.path.join(self.artifacts_dir, "classifier_v1.joblib")
-        clf = joblib.load(path) if os.path.exists(path) else None
+        if not os.path.exists(path):
+            raise FileNotFoundError(
+                f"Required model artifact 'classifier_v1.joblib' missing from {self.artifacts_dir}. "
+                "Run 'python -m ml.models.trainer' to generate baseline model artifacts."
+            )
+        clf = joblib.load(path)
         return CycloneClassifier(classifier_model=clf)
 
     def load_predictor(self) -> CyclonePredictor:
         path = os.path.join(self.artifacts_dir, "predictor_v1.joblib")
-        reg = joblib.load(path) if os.path.exists(path) else None
+        if not os.path.exists(path):
+            raise FileNotFoundError(
+                f"Required model artifact 'predictor_v1.joblib' missing from {self.artifacts_dir}. "
+                "Run 'python -m ml.models.trainer' to generate baseline model artifacts."
+            )
+        reg = joblib.load(path)
         return CyclonePredictor(regressor_model=reg)
+
 
 # Global registry instance
 registry = ModelRegistry()

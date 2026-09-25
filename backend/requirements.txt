@@ -12,3 +12,5 @@ pillow>=10.4.0
 python-multipart>=0.0.9
 pytest>=8.0.0
 streamlit>=1.38.0
+pandas>=2.2.0
+
