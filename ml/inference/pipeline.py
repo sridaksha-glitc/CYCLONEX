@@ -144,3 +144,28 @@ class CycloneInferencePipeline:
 
 # Global pipeline singleton
 inference_pipeline = CycloneInferencePipeline()
+
+if __name__ == "__main__":
+    import json
+    print("=" * 70)
+    print("CYCLONEX Multi-Source AI/ML Inference Pipeline")
+    print("Executing demonstration inference on benchmark storm: Cyclone Remal")
+    print("=" * 70)
+
+    demo_obs = UnifiedObservation(
+        timestamp=datetime.now(timezone.utc),
+        latitude=21.4,
+        longitude=89.2,
+        source="INSAT-3D Rapid Scan + NOAA IBTrACS",
+        data_mode=DataMode.HISTORICAL,
+        cyclone_name="REMAL",
+        temperature=28.5,
+        humidity=84.0,
+        pressure=978.0,
+        wind_speed_kts=60.0,
+        image_features={"cdo_symmetry": 0.84, "min_brightness_temp_k": 208.5}
+    )
+
+    pred = inference_pipeline.predict_observation(demo_obs)
+    print(json.dumps(pred.model_dump(), indent=2))
+
