@@ -1,0 +1,14 @@
+{
+  "cyclone_name": "BASELINE-CALM",
+  "cyclone_id": "CALM-SEA-001",
+  "satellite": "INSAT-3D",
+  "sensor": "Imager",
+  "channel": "VIS-0.65um",
+  "timestamp": "2024-04-10T06:00:00Z",
+  "latitude": 10.0,
+  "longitude": 75.0,
+  "min_brightness_temp_k": 285.0,
+  "cdo_symmetry": 0.18,
+  "data_mode": "HISTORICAL",
+  "source": "Clear Ocean Marine Climatology Tile"
+}

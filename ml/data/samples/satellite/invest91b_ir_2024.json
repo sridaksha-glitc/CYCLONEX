@@ -1,0 +1,14 @@
+{
+  "cyclone_name": "INVEST-91B",
+  "cyclone_id": "INVEST-91B-2024",
+  "satellite": "INSAT-3DR",
+  "sensor": "Imager",
+  "channel": "IR-10.8um",
+  "timestamp": "2024-09-24T12:00:00Z",
+  "latitude": 12.8,
+  "longitude": 85.4,
+  "min_brightness_temp_k": 224.0,
+  "cdo_symmetry": 0.62,
+  "data_mode": "DEMO",
+  "source": "INSAT-3DR Demonstration Tile / Climatology Proxy"
+}

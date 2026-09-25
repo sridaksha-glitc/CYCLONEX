@@ -1,0 +1,14 @@
+{
+  "cyclone_name": "REMAL",
+  "cyclone_id": "BOB-01-2024",
+  "satellite": "INSAT-3D",
+  "sensor": "Imager",
+  "channel": "IR-10.8um",
+  "timestamp": "2024-05-25T18:00:00Z",
+  "latitude": 20.8,
+  "longitude": 89.3,
+  "min_brightness_temp_k": 208.5,
+  "cdo_symmetry": 0.84,
+  "data_mode": "HISTORICAL",
+  "source": "INSAT-3D Rapid Scan Archive / IMD RSMC"
+}
