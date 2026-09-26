@@ -9,7 +9,8 @@ import {
   ShieldCheck, 
   FileText,
   TrendingUp,
-  BrainCircuit
+  BrainCircuit,
+  FlaskConical
 } from "lucide-react";
 
 export default function ModelsArchitecturePage() {
@@ -127,6 +128,107 @@ export default function ModelsArchitecturePage() {
               <span className="text-slate-500">Rapid Intensification:</span>
               <span className="text-rose-400">ΔV ≥ 30 kts / 24h</span>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Scientific Validation Benchmark Section */}
+      <div className="glass-panel p-6 rounded-2xl border border-slate-800 space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-800 pb-4 gap-3">
+          <div>
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-950/80 text-amber-400 border border-amber-800/80 mb-1.5">
+              <FlaskConical className="h-3 w-3" />
+              <span>RESEARCH BENCHMARK — NOT OPERATIONAL ACCURACY</span>
+            </div>
+            <h2 className="text-xl font-bold text-white flex items-center gap-2">
+              <span>Scientific Validation: Leakage-Safe Intensity Inference</span>
+            </h2>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Academic evaluation assessing cyclone category inference when sustained wind speed is strictly excluded from input features.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="px-3 py-1 rounded-lg text-xs font-mono bg-slate-900 border border-slate-800 text-slate-300">
+              Split: <strong className="text-cyan-400">Leave-One-Cyclone-Out (LOCO)</strong>
+            </span>
+          </div>
+        </div>
+
+        {/* Dual Benchmark Cards: Calibrated vs Scientific */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Calibrated Baseline */}
+          <div className="p-5 rounded-xl bg-slate-950/60 border border-slate-800 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-900 text-slate-400 border border-slate-700">
+                DEFINITIONALLY LEAKED / CALIBRATION BENCHMARK
+              </span>
+              <span className="text-xs font-mono text-emerald-400 font-bold">99.67% Acc</span>
+            </div>
+            <h4 className="text-sm font-bold text-white">Model B — Wind-Inclusive Calibrated Baseline</h4>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Provides sustained wind speed directly to verify software lookup of IMD boundaries. Evaluated on random 75/25 split with synthetic augmentation.
+            </p>
+            <div className="space-y-1.5 text-xs font-mono text-slate-300 pt-2 border-t border-slate-900">
+              <div className="flex justify-between">
+                <span className="text-slate-500">Input Features:</span>
+                <span className="text-amber-300">Includes wind_kts directly</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Evaluation Split:</span>
+                <span>Random 75/25 Shuffle</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Operational Role:</span>
+                <span className="text-cyan-400">Functional Demo Pipeline</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Scientific LOCO Benchmark */}
+          <div className="p-5 rounded-xl bg-cyan-950/20 border border-cyan-900/50 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-cyan-950 text-cyan-400 border border-cyan-800">
+                SCIENTIFIC VALIDATION EXPERIMENT
+              </span>
+              <span className="text-xs font-mono text-cyan-400 font-bold">26.92% Acc / 0.226 F1w</span>
+            </div>
+            <h4 className="text-sm font-bold text-white">Model B — Wind-Excluded Cyclone-Level Benchmark</h4>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Strictly zero wind speed inputs. Evaluated via Leave-One-Cyclone-Out on 100% empirical historical NOAA IBTrACS track points (zero synthetic rows).
+            </p>
+            <div className="space-y-1.5 text-xs font-mono text-slate-300 pt-2 border-t border-slate-900">
+              <div className="flex justify-between">
+                <span className="text-slate-500">Input Features:</span>
+                <span className="text-emerald-400">8 Non-wind pressure &amp; kinematic features</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Evaluation Split:</span>
+                <span className="text-cyan-300">Leave-One-Cyclone-Out (LOCO)</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Near-Miss Accuracy:</span>
+                <span className="text-amber-400">&gt;85% within ±1 IMD category</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Dataset & Feature Breakdown Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+          <div className="p-3 bg-slate-950/40 rounded-lg border border-slate-800/80">
+            <div className="text-[11px] font-mono text-slate-500">EMPIRICAL DATASET</div>
+            <div className="text-sm font-bold text-white mt-1">4 Historical Cyclones</div>
+            <div className="text-xs text-slate-400 mt-0.5 font-mono">REMAL, BIPARJOY, MICHAUNG, AMPHAN</div>
+          </div>
+          <div className="p-3 bg-slate-950/40 rounded-lg border border-slate-800/80">
+            <div className="text-[11px] font-mono text-slate-500">SAMPLE OBSERVATIONS</div>
+            <div className="text-sm font-bold text-white mt-1">26 Verified Track Points</div>
+            <div className="text-xs text-slate-400 mt-0.5 font-mono">100% NOAA IBTrACS v04r00 NIO</div>
+          </div>
+          <div className="p-3 bg-slate-950/40 rounded-lg border border-slate-800/80">
+            <div className="text-[11px] font-mono text-slate-500">NON-WIND FEATURE VECTOR</div>
+            <div className="text-sm font-bold text-white mt-1">8 Physical &amp; Kinematic Signals</div>
+            <div className="text-xs text-slate-400 mt-0.5 font-mono">P_deficit, P_center, Lat, Lon, Speed, Heading, Sin/Cos DOY</div>
           </div>
         </div>
       </div>

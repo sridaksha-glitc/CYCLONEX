@@ -1,0 +1,349 @@
+{
+  "experiment": "wind_excluded_cyclone_level_classification",
+  "status": "COMPLETED",
+  "timestamp": "2026-09-26T03:58:54.000374+00:00",
+  "model_type": "RandomForestClassifier(n_estimators=40, max_depth=4, random_state=42)",
+  "split_strategy": "LEAVE_ONE_CYCLONE_OUT (LOCO)",
+  "dataset": {
+    "source": "NOAA IBTrACS v04r00 (ibtracs_nio_subset.csv)",
+    "total_observations": 26,
+    "total_cyclones": 4,
+    "cyclones": [
+      "AMPHAN",
+      "BIPARJOY",
+      "MICHAUNG",
+      "REMAL"
+    ],
+    "class_distribution": {
+      "Low Pressure Area": 0,
+      "Depression": 2,
+      "Deep Depression": 1,
+      "Cyclonic Storm": 8,
+      "Severe Cyclonic Storm": 7,
+      "Very Severe Cyclonic Storm": 5,
+      "Extremely Severe Cyclonic Storm": 2,
+      "Super Cyclonic Storm": 1
+    }
+  },
+  "features_used": [
+    "pressure_deficit_hpa",
+    "central_pressure_hpa",
+    "latitude",
+    "longitude",
+    "movement_speed_kmh",
+    "movement_direction_deg",
+    "seasonality_sin",
+    "seasonality_cos"
+  ],
+  "excluded_features": [
+    "wind_kts",
+    "wind_kmh",
+    "synthetic_cdo_symmetry",
+    "synthetic_core_temp_k",
+    "synthetic_humidity"
+  ],
+  "leakage_controls": {
+    "wind_excluded": true,
+    "cyclone_overlap_prevented": true,
+    "temporal_lookahead_prevented": true,
+    "synthetic_data_excluded": true
+  },
+  "aggregate_metrics": {
+    "out_of_fold_accuracy": 0.2692,
+    "precision_macro": 0.0922,
+    "recall_macro": 0.1276,
+    "f1_macro": 0.107,
+    "f1_weighted": 0.226,
+    "confusion_matrix": [
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        6,
+        1,
+        1,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        2,
+        1,
+        4,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        5,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0
+      ]
+    ],
+    "total_test_samples": 26
+  },
+  "comparison": {
+    "production_calibrated_benchmark": {
+      "label": "DEFINITIONALLY LEAKED / CALIBRATION BENCHMARK",
+      "features": "Includes wind_kts directly",
+      "accuracy": 0.9967,
+      "macro_f1": 0.9967,
+      "evaluation_split": "Random 75/25 split with 97.9% synthetic augmentation",
+      "note": "Proves model implementation correctly learns IMD wind intervals, but does not represent non-wind inferential capability."
+    },
+    "scientific_validation_experiment": {
+      "label": "SCIENTIFIC VALIDATION EXPERIMENT (LEAKAGE-SAFE)",
+      "features": "Barometric deficit, latitude, longitude, movement speed, heading, seasonality (NO WIND)",
+      "accuracy": 0.2692,
+      "macro_f1": 0.107,
+      "weighted_f1": 0.226,
+      "evaluation_split": "Leave-One-Cyclone-Out (LOCO) on 100% empirical IBTrACS rows",
+      "note": "Realistic estimate of classification capability from non-wind physical pressure and geospatial kinematics alone."
+    }
+  },
+  "folds": [
+    {
+      "fold_id": "LOCO_AMPHAN",
+      "held_out_cyclone": "AMPHAN",
+      "train_samples": 21,
+      "test_samples": 5,
+      "train_cyclones": [
+        "BIPARJOY",
+        "MICHAUNG",
+        "REMAL"
+      ],
+      "fold_accuracy": 0.4,
+      "held_out_classes": [
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "training_classes": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "unseen_classes_in_fold": [
+        7
+      ],
+      "y_true": [
+        3,
+        4,
+        6,
+        7,
+        5
+      ],
+      "y_pred": [
+        3,
+        4,
+        4,
+        4,
+        4
+      ]
+    },
+    {
+      "fold_id": "LOCO_BIPARJOY",
+      "held_out_cyclone": "BIPARJOY",
+      "train_samples": 19,
+      "test_samples": 7,
+      "train_cyclones": [
+        "AMPHAN",
+        "MICHAUNG",
+        "REMAL"
+      ],
+      "fold_accuracy": 0.1429,
+      "held_out_classes": [
+        3,
+        4,
+        5,
+        6
+      ],
+      "training_classes": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "unseen_classes_in_fold": [],
+      "y_true": [
+        3,
+        4,
+        5,
+        5,
+        6,
+        5,
+        5
+      ],
+      "y_pred": [
+        3,
+        3,
+        4,
+        4,
+        4,
+        4,
+        4
+      ]
+    },
+    {
+      "fold_id": "LOCO_MICHAUNG",
+      "held_out_cyclone": "MICHAUNG",
+      "train_samples": 21,
+      "test_samples": 5,
+      "train_cyclones": [
+        "AMPHAN",
+        "BIPARJOY",
+        "REMAL"
+      ],
+      "fold_accuracy": 0.6,
+      "held_out_classes": [
+        1,
+        3,
+        4
+      ],
+      "training_classes": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "unseen_classes_in_fold": [],
+      "y_true": [
+        1,
+        3,
+        3,
+        4,
+        3
+      ],
+      "y_pred": [
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "fold_id": "LOCO_REMAL",
+      "held_out_cyclone": "REMAL",
+      "train_samples": 17,
+      "test_samples": 9,
+      "train_cyclones": [
+        "AMPHAN",
+        "BIPARJOY",
+        "MICHAUNG"
+      ],
+      "fold_accuracy": 0.1111,
+      "held_out_classes": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "training_classes": [
+        1,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "unseen_classes_in_fold": [
+        2
+      ],
+      "y_true": [
+        1,
+        2,
+        3,
+        3,
+        4,
+        4,
+        4,
+        4,
+        3
+      ],
+      "y_pred": [
+        3,
+        3,
+        3,
+        4,
+        5,
+        5,
+        5,
+        5,
+        5
+      ]
+    }
+  ],
+  "scientific_limitations": [
+    "Limited sample size: The empirical IBTrACS subset contains 26 track observations across 4 storms.",
+    "Out-of-distribution extremes: Cyclone Amphan contains the only Super Cyclonic Storm (SuCS) observation in the dataset. When Amphan is held out, the training set contains zero SuCS examples, making SuCS prediction mathematically impossible for that fold.",
+    "Satellite feature absence: True continuous satellite IR features (CDO symmetry, minimum brightness temp) were not available in tabular IBTrACS records; synthetic proxies were excluded to preserve empirical validity."
+  ]
+}

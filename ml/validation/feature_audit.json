@@ -1,0 +1,153 @@
+{
+  "audit_title": "CYCLONEX Scientific Validation & Feature Lineage Audit",
+  "audit_timestamp": "2026-09-26T00:05:00Z",
+  "status": "COMPLETED",
+  "sources": [
+    {
+      "file_path": "ml/data/samples/historical/ibtracs_nio_subset.csv",
+      "dataset_name": "NOAA IBTrACS v04r00 North Indian Ocean Subset",
+      "row_count": 26,
+      "nature": "Empirical historical meteorological track observations",
+      "cyclones": [
+        {
+          "cyclone_id": "2024146N18089",
+          "name": "REMAL",
+          "season": 2024,
+          "basin": "Bay of Bengal",
+          "observations_count": 9,
+          "peak_wind_kts": 60.0,
+          "min_pressure_hpa": 978.0
+        },
+        {
+          "cyclone_id": "2023157N12066",
+          "name": "BIPARJOY",
+          "season": 2023,
+          "basin": "Arabian Sea",
+          "observations_count": 7,
+          "peak_wind_kts": 90.0,
+          "min_pressure_hpa": 954.0
+        },
+        {
+          "cyclone_id": "2023334N08088",
+          "name": "MICHAUNG",
+          "season": 2023,
+          "basin": "Bay of Bengal",
+          "observations_count": 5,
+          "peak_wind_kts": 55.0,
+          "min_pressure_hpa": 986.0
+        },
+        {
+          "cyclone_id": "2020137N10086",
+          "name": "AMPHAN",
+          "season": 2020,
+          "basin": "Bay of Bengal",
+          "observations_count": 5,
+          "peak_wind_kts": 130.0,
+          "min_pressure_hpa": 920.0
+        }
+      ]
+    },
+    {
+      "file_path": "ml/data/samples/satellite/",
+      "dataset_name": "Curated Satellite Infrared / Visible Tiles",
+      "row_count": 3,
+      "nature": "Single-snapshot static benchmark raster tiles",
+      "files": [
+        "remal_ir_2024.png",
+        "invest91b_ir_2024.png",
+        "calm_sea_vis.png"
+      ],
+      "note": "Static single tiles; not temporally co-located across all 26 historical IBTrACS track points."
+    }
+  ],
+  "excluded_features": [
+    {
+      "feature": "wind_kts / WMO_WIND",
+      "reason": "CRITICAL TARGET LEAKAGE. By definition of the WMO/IMD classification standard, IMD tiers 0 through 7 are defined as direct, non-overlapping intervals of sustained wind speed (e.g. Tier 4 is strictly 48-63 kts). Including wind speed allows any decision tree to trivially learn the boundary thresholds."
+    },
+    {
+      "feature": "wind_kmh",
+      "reason": "Direct linear conversion of wind_kts (wind_kts * 1.852)."
+    },
+    {
+      "feature": "synthetic cdo_symmetry",
+      "reason": "Raw tabular IBTrACS observations do not contain continuous raster symmetry metrics. Synthetically generating CDO from the target tier (as done in calibration scripts) constitutes circular target leakage."
+    },
+    {
+      "feature": "synthetic core_temp_k",
+      "reason": "Raw tabular IBTrACS observations do not contain satellite brightness temperature. Synthetic generation would fabricate data."
+    },
+    {
+      "feature": "synthetic humidity_pct / sst_c",
+      "reason": "In-situ humidity and SST are not recorded in the raw IBTrACS track points and cannot be fabricated without scientific dishonesty."
+    },
+    {
+      "feature": "future observations / delta_w_future",
+      "reason": "Temporal lookahead leakage."
+    }
+  ],
+  "scientific_benchmark_features": [
+    {
+      "name": "pressure_deficit_hpa",
+      "formula": "1013.25 - central_pressure_hpa",
+      "type": "physical_scalar",
+      "rationale": "Core barometric depression indicates vortex depth independent of direct wind observation."
+    },
+    {
+      "name": "central_pressure_hpa",
+      "type": "physical_scalar",
+      "rationale": "Directly observed central surface pressure from meteorological reports."
+    },
+    {
+      "name": "latitude",
+      "type": "geospatial_scalar",
+      "rationale": "Coriolis force parameter ($f = 2\\Omega \\sin\\phi$) governs cyclonic vortex spinup potential."
+    },
+    {
+      "name": "longitude",
+      "type": "geospatial_scalar",
+      "rationale": "Distinguishes Bay of Bengal from Arabian Sea climatological basin dynamics."
+    },
+    {
+      "name": "movement_speed_kmh",
+      "type": "kinematic_scalar",
+      "rationale": "Translation velocity impacts vortex residence time over oceanic heat content."
+    },
+    {
+      "name": "movement_direction_deg",
+      "type": "kinematic_scalar",
+      "rationale": "Steering flow azimuth."
+    },
+    {
+      "name": "seasonality_sin",
+      "formula": "sin(2 * pi * day_of_year / 365.25)",
+      "type": "temporal_cyclical",
+      "rationale": "Captures North Indian Ocean pre-monsoon (May) vs post-monsoon (Oct-Dec) cyclone peaks."
+    },
+    {
+      "name": "seasonality_cos",
+      "formula": "cos(2 * pi * day_of_year / 365.25)",
+      "type": "temporal_cyclical",
+      "rationale": "Captures cyclical annual distribution."
+    }
+  ],
+  "target_variable": {
+    "name": "imd_classification_tier",
+    "classes": [
+      "Low Pressure Area (Tier 0)",
+      "Depression (Tier 1)",
+      "Deep Depression (Tier 2)",
+      "Cyclonic Storm (Tier 3)",
+      "Severe Cyclonic Storm (Tier 4)",
+      "Very Severe Cyclonic Storm (Tier 5)",
+      "Extremely Severe Cyclonic Storm (Tier 6)",
+      "Super Cyclonic Storm (Tier 7)"
+    ]
+  },
+  "validation_protocol": {
+    "primary_strategy": "LEAVE_ONE_CYCLONE_OUT (LOCO)",
+    "description": "Each storm (REMAL, BIPARJOY, MICHAUNG, AMPHAN) is held out completely as an out-of-sample test set while the model is trained exclusively on the remaining storms. Zero observations belonging to the held-out cyclone appear in training.",
+    "secondary_strategy": "GROUP_K_FOLD",
+    "description": "Grouped cross-validation grouped strictly by cyclone ID to prevent time-adjacent row leakage."
+  }
+}

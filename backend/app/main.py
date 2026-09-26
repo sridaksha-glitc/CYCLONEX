@@ -12,7 +12,8 @@ from app.api.v1.endpoints import (
     cyclones,
     history,
     alerts,
-    ingest
+    ingest,
+    validation
 )
 
 app = FastAPI(
@@ -56,6 +57,7 @@ app.include_router(cyclones.router, prefix=api_v1_prefix, tags=["Cyclone Monitor
 app.include_router(history.router, prefix=api_v1_prefix, tags=["Historical Climatology"])
 app.include_router(alerts.router, prefix=api_v1_prefix, tags=["Automated Alerting"])
 app.include_router(ingest.router, prefix=api_v1_prefix, tags=["Observation Ingest"])
+app.include_router(validation.router, prefix=api_v1_prefix, tags=["Scientific Validation"])
 
 if __name__ == "__main__":
     import uvicorn
