@@ -186,6 +186,14 @@ class ScientificBenchmarkExperiment:
         f1_weighted = float(round(f1_score(all_y_true, all_y_pred, average="weighted", zero_division=0), 4))
         conf_mat = [[int(val) for val in row] for row in confusion_matrix(all_y_true, all_y_pred, labels=list(range(8)))]
 
+        # Error diagnostics and adjacent-tier analysis
+        correct_count = int(np.sum(all_y_true == all_y_pred))
+        error_count = int(len(all_y_true) - correct_count)
+        adjacent_error_count = int(np.sum(np.abs(all_y_true - all_y_pred) == 1))
+        adjacent_error_pct = float(round(adjacent_error_count / error_count, 4)) if error_count > 0 else 0.0
+        exact_or_adjacent_count = correct_count + adjacent_error_count
+        exact_or_adjacent_pct = float(round(exact_or_adjacent_count / len(all_y_true), 4))
+
         # Class breakdown
         class_counts = {cat["name"]: int(np.sum(all_y_true == cat["tier"])) for cat in IMD_CATEGORIES}
 
@@ -223,7 +231,12 @@ class ScientificBenchmarkExperiment:
                 "f1_macro": f1_macro,
                 "f1_weighted": f1_weighted,
                 "confusion_matrix": conf_mat,
-                "total_test_samples": int(len(all_y_true))
+                "total_test_samples": int(len(all_y_true)),
+                "correct_predictions": correct_count,
+                "incorrect_predictions": error_count,
+                "adjacent_tier_errors": adjacent_error_count,
+                "adjacent_tier_agreement_among_errors": adjacent_error_pct,
+                "exact_or_adjacent_agreement": exact_or_adjacent_pct
             },
             "comparison": {
                 "production_calibrated_benchmark": {

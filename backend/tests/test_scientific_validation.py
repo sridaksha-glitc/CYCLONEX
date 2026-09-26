@@ -102,8 +102,20 @@ def test_results_artifact_is_valid():
     assert 0.0 <= metrics["precision_macro"] <= 1.0
     assert 0.0 <= metrics["recall_macro"] <= 1.0
     assert 0.0 <= metrics["f1_macro"] <= 1.0
-    assert 0.0 <= metrics["f1_weighted"] <= 1.0
     assert len(metrics["confusion_matrix"]) == 8
+
+    # Verify confusion matrix totals and adjacent-tier error diagnostics
+    conf_mat = np.array(metrics["confusion_matrix"])
+    total_obs = int(conf_mat.sum())
+    correct = int(np.trace(conf_mat))
+    errors = total_obs - correct
+
+    assert total_obs == 26, f"Expected 26 total observations, got {total_obs}"
+    assert correct == 7, f"Expected 7 correct predictions, got {correct}"
+    assert errors == 19, f"Expected 19 errors, got {errors}"
+    assert metrics["adjacent_tier_errors"] == 13, f"Expected 13 adjacent-tier errors, got {metrics['adjacent_tier_errors']}"
+    assert round(metrics["adjacent_tier_agreement_among_errors"], 3) == 0.684
+    assert round(metrics["exact_or_adjacent_agreement"], 3) == 0.769
 
     # Verify comparison section
     comparison = results["comparison"]

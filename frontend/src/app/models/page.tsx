@@ -206,8 +206,8 @@ export default function ModelsArchitecturePage() {
                 <span className="text-cyan-300">Leave-One-Cyclone-Out (LOCO)</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-500">Near-Miss Accuracy:</span>
-                <span className="text-amber-400">&gt;85% within ±1 IMD category</span>
+                <span className="text-slate-500">Adjacent Agreement:</span>
+                <span className="text-amber-400">76.9% correct or ±1 tier (20/26)</span>
               </div>
             </div>
           </div>

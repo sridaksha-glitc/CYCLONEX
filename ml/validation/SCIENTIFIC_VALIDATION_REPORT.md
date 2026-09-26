@@ -126,6 +126,8 @@ Combining predictions across all 4 held-out folds yields the aggregate, out-of-f
 | **Macro F1-Score** | **0.1070** | Heavily penalized by extreme categories (Tier 7, Tier 2) with zero training representation in specific folds. |
 | **Macro Precision** | **0.0922** | Indicates conservative clustering toward common central categories. |
 | **Macro Recall** | **0.1276** | Reflects difficulty in recovering rare extreme intensities without wind data. |
+| **Adjacent-tier agreement among incorrect predictions** | **68.4%** | 13 of 19 errors classified into an immediately adjacent IMD category. |
+| **Correct or Adjacent-Tier Predictions** | **76.9%** | 20 of 26 total predictions were either correct (7) or within one adjacent IMD tier (13). |
 
 ---
 
@@ -147,7 +149,7 @@ Super CS (7)       0      0     0      0       1       0        0        0     [
 ```
 
 ### Key Error Patterns:
-1. **Near-Miss Predictions:** Over 85% of incorrect predictions were classified into an **immediately adjacent IMD tier** (e.g., Tier 4 predicted as Tier 3 or Tier 5).
+1. **Adjacent-Tier Agreement:** Among the incorrect predictions, 68.4% were classified into an immediately adjacent IMD tier (13 of 19 errors). Including correct predictions, 76.9% of all benchmark predictions were either correct or within one adjacent IMD tier (20 of 26).
 2. **Central Clustering:** The model concentrated predictions into Tier 3 (Cyclonic Storm) and Tier 4 (Severe Cyclonic Storm), which represent the statistical median of barometric pressure in the historical sample.
 3. **No False Extreme Alarms:** The model never falsely predicted a Super Cyclonic Storm (Tier 7) or Extremely Severe Cyclonic Storm (Tier 6).
 
@@ -201,6 +203,6 @@ When presenting these results to judges and meteorologists:
 
 > "In our demonstration prototype, Model B achieves 99.67% accuracy as a calibrated baseline because it directly consumes wind speed, verifying that our software correctly maps IMD thresholds.
 >
-> To answer the deeper scientific question, we conducted a separate, leakage-safe experiment using Leave-One-Cyclone-Out cross-validation with wind speed completely removed. On 100% empirical historical tracks, our model achieves 26.92% exact 8-tier category accuracy and 0.2260 weighted F1 using only barometric deficit and kinematics. 
+> Among the incorrect predictions, 68.4% were classified into an immediately adjacent IMD tier (13 of 19 errors). Including correct predictions, 76.9% of all benchmark predictions were either correct or within one adjacent IMD tier (20 of 26).
 >
-> More than 85% of all predictions fall within one adjacent IMD category, demonstrating that barometric pressure deficit provides a meaningful physical signal for cyclone intensity estimation even when sustained wind observations are unavailable."
+> The result suggests that pressure deficit and track kinematics may contain useful physical signal for intensity estimation when sustained wind is unavailable, but the four-cyclone, 26-observation benchmark is too small to establish operational performance."

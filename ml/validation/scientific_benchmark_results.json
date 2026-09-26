@@ -1,7 +1,7 @@
 {
   "experiment": "wind_excluded_cyclone_level_classification",
   "status": "COMPLETED",
-  "timestamp": "2026-09-26T03:58:54.000374+00:00",
+  "timestamp": "2026-09-26T04:05:34.966687+00:00",
   "model_type": "RandomForestClassifier(n_estimators=40, max_depth=4, random_state=42)",
   "split_strategy": "LEAVE_ONE_CYCLONE_OUT (LOCO)",
   "dataset": {
@@ -136,7 +136,12 @@
         0
       ]
     ],
-    "total_test_samples": 26
+    "total_test_samples": 26,
+    "correct_predictions": 7,
+    "incorrect_predictions": 19,
+    "adjacent_tier_errors": 13,
+    "adjacent_tier_agreement_among_errors": 0.6842,
+    "exact_or_adjacent_agreement": 0.7692
   },
   "comparison": {
     "production_calibrated_benchmark": {
