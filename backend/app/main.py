@@ -1,20 +1,48 @@
+import os
+import sys
+
+# Automatically ensure backend directory and repository root are on sys.path
+# This enables seamless execution on Vercel, Docker, local, and CI environments without manual PYTHONPATH setup
+_current_dir = os.path.dirname(os.path.abspath(__file__))  # backend/app
+_backend_dir = os.path.abspath(os.path.join(_current_dir, ".."))  # backend
+_repo_root = os.path.abspath(os.path.join(_backend_dir, ".."))  # repository root
+
+for _path in [_backend_dir, _repo_root]:
+    if _path not in sys.path:
+        sys.path.insert(0, _path)
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime, timezone
 
-from app.config import settings
-from app.api.v1.endpoints import (
-    health,
-    analyze,
-    detect,
-    classify,
-    predict,
-    cyclones,
-    history,
-    alerts,
-    ingest,
-    validation
-)
+try:
+    from app.config import settings
+    from app.api.v1.endpoints import (
+        health,
+        analyze,
+        detect,
+        classify,
+        predict,
+        cyclones,
+        history,
+        alerts,
+        ingest,
+        validation
+    )
+except ImportError:
+    from backend.app.config import settings
+    from backend.app.api.v1.endpoints import (
+        health,
+        analyze,
+        detect,
+        classify,
+        predict,
+        cyclones,
+        history,
+        alerts,
+        ingest,
+        validation
+    )
 
 app = FastAPI(
     title="CYCLONEX Tropical Cyclone Intelligence Platform",
