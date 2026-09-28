@@ -7,7 +7,7 @@
 export const API_BASE_URL = (
   process.env.NEXT_PUBLIC_API_BASE_URL || 
   process.env.NEXT_PUBLIC_API_URL || 
-  "http://localhost:8000"
+  "https://cyclonex-backend.vercel.app"
 ).replace(/\/$/, "");
 
 export interface RiskFactor {
@@ -234,6 +234,30 @@ export const BENCHMARK_SCENARIOS: BenchmarkScenario[] = [
     }
   }
 ];
+
+/**
+ * Standard Verified Demo Analysis Payload (Production Baseline)
+ */
+export const DEMO_ANALYSIS_PAYLOAD: AnalyzeRequest = {
+  latitude: 15.2,
+  longitude: 72.8,
+  temperature: 27.5,
+  humidity: 82,
+  pressure: 978,
+  wind_speed: 55,
+  wind_speed_kts: 55,
+  wind_direction: 285,
+  satellite_image: "remal_ir_2024.png",
+  satellite_image_path: "",
+  cyclone_id: "DEMO-REMAL-2024",
+  cyclone_name: "REMAL",
+  data_mode: "DEMO",
+  force_live_weather: false
+};
+
+export async function runDemoAnalysis(): Promise<AnalyzeResponse> {
+  return analyzeCyclone(DEMO_ANALYSIS_PAYLOAD);
+}
 
 export async function analyzeCyclone(request: AnalyzeRequest): Promise<AnalyzeResponse> {
   const res = await fetch(`${API_BASE_URL}/api/v1/analyze`, {

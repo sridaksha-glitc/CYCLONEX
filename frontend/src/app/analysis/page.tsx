@@ -21,6 +21,8 @@ import {
   BENCHMARK_SCENARIOS, 
   BenchmarkScenario, 
   analyzeCyclone, 
+  runDemoAnalysis,
+  DEMO_ANALYSIS_PAYLOAD,
   AnalyzeResponse, 
   AnalyzeRequest 
 } from "@/lib/api";
@@ -57,6 +59,35 @@ export default function AnalysisWorkbenchPage() {
     setStormName(scenario.payload.cyclone_name ?? "Benchmark Storm");
   };
 
+  const handleRunDemoAnalysis = async () => {
+    setActiveScenarioId("demo_remal_verified");
+    setDataMode("DEMO");
+    setLat(DEMO_ANALYSIS_PAYLOAD.latitude);
+    setLon(DEMO_ANALYSIS_PAYLOAD.longitude);
+    setTemperature(DEMO_ANALYSIS_PAYLOAD.temperature ?? 27.5);
+    setHumidity(DEMO_ANALYSIS_PAYLOAD.humidity ?? 82);
+    setPressure(DEMO_ANALYSIS_PAYLOAD.pressure ?? 978);
+    setWindKts(DEMO_ANALYSIS_PAYLOAD.wind_speed_kts ?? 55);
+    setWindDirection(DEMO_ANALYSIS_PAYLOAD.wind_direction ?? 285);
+    setStormName(DEMO_ANALYSIS_PAYLOAD.cyclone_name ?? "REMAL");
+    setSatelliteImage("remal_ir_2024.png");
+    setForceLive(false);
+
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await runDemoAnalysis();
+      setResult(data);
+    } catch (err: unknown) {
+      console.error("Demo analysis failed:", err);
+      setResult(null); // Clear fake/stale values per rule 11
+      const msg = err instanceof Error ? err.message : "Failed to execute verified demo analysis. Ensure backend is reachable.";
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -91,9 +122,11 @@ export default function AnalysisWorkbenchPage() {
 
       const data = await analyzeCyclone(payload);
       setResult(data);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Analysis invocation error:", err);
-      setError(err.message || "Failed to complete AI multi-source inference.");
+      setResult(null); // Clear fake/stale values per rule 11
+      const msg = err instanceof Error ? err.message : "Failed to complete AI multi-source inference. Ensure backend is reachable.";
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -111,6 +144,39 @@ export default function AnalysisWorkbenchPage() {
         <p className="text-slate-400 text-sm mt-1 max-w-3xl">
           Execute end-to-end multi-source inference across Model A (Detection), Model B (IMD Classification), and Model C (Prediction), with transparent Explainable AI attribution and Prototype Risk Index generation.
         </p>
+      </div>
+
+      {/* Verified Demo Action Callout */}
+      <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-cyan-950/80 via-slate-900 to-blue-950/80 border border-cyan-800/60 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-cyan-900 text-cyan-300 border border-cyan-700">
+              VERIFIED BENCHMARK PAYLOAD
+            </span>
+            <span className="text-xs font-bold text-white">REMAL Production Demo Analysis</span>
+          </div>
+          <p className="text-slate-400 text-xs">
+            Coordinates: 15.2°N, 72.8°E • Wind: 55 kts (55 kts sustained) • Pressure: 978 hPa • Mode: DEMO • Satellite: remal_ir_2024.png
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={handleRunDemoAnalysis}
+          disabled={loading}
+          className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black text-xs tracking-wider transition-all flex items-center gap-2 shadow-lg shadow-cyan-500/20 disabled:opacity-50 shrink-0"
+        >
+          {loading ? (
+            <>
+              <RefreshCw className="h-4 w-4 animate-spin text-slate-950" />
+              <span>EXECUTING...</span>
+            </>
+          ) : (
+            <>
+              <Play className="h-4 w-4 text-slate-950" />
+              <span>RUN VERIFIED DEMO ANALYSIS</span>
+            </>
+          )}
+        </button>
       </div>
 
       {/* 5 Canonical Benchmark Scenario Chips */}

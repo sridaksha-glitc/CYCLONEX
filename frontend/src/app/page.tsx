@@ -14,14 +14,14 @@ import {
   RefreshCw,
   Cpu,
   Info,
-  Clock,
-  TrendingUp
+  Sparkles
 } from "lucide-react";
 import { CycloneMap } from "@/components/CycloneMap";
 import { 
   fetchCyclones, 
   fetchAlerts, 
   analyzeCyclone, 
+  runDemoAnalysis,
   CycloneItem, 
   AlertItem, 
   AnalyzeResponse 
@@ -34,6 +34,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<AnalyzeResponse | null>(null);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string>("");
 
   useEffect(() => {
@@ -104,6 +105,7 @@ export default function DashboardPage() {
   const triggerInstantAnalysis = async () => {
     if (!selectedCyclone) return;
     setAnalyzing(true);
+    setAnalysisError(null);
     try {
       const data = await analyzeCyclone({
         latitude: selectedCyclone.current_lat,
@@ -117,8 +119,27 @@ export default function DashboardPage() {
         data_mode: selectedCyclone.data_mode
       });
       setAnalysisResult(data);
-    } catch (e) {
+    } catch (e: unknown) {
       console.error("Instant analysis failed:", e);
+      setAnalysisResult(null); // Clear fake/stale values per rule 11
+      const msg = e instanceof Error ? e.message : "Instant analysis failed. Ensure backend API is reachable.";
+      setAnalysisError(msg);
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  const triggerVerifiedDemoAnalysis = async () => {
+    setAnalyzing(true);
+    setAnalysisError(null);
+    try {
+      const data = await runDemoAnalysis();
+      setAnalysisResult(data);
+    } catch (e: unknown) {
+      console.error("Verified demo analysis failed:", e);
+      setAnalysisResult(null); // Clear fake/stale values per rule 11
+      const msg = e instanceof Error ? e.message : "Verified demo analysis failed. Ensure backend API is reachable.";
+      setAnalysisError(msg);
     } finally {
       setAnalyzing(false);
     }
@@ -156,7 +177,7 @@ export default function DashboardPage() {
                 <span>AI/ML TROPICAL CYCLONE INTELLIGENCE</span>
               </span>
               <span className="px-2.5 py-0.5 rounded-full bg-slate-950 border border-slate-800 text-slate-400 text-[11px] font-mono">
-                System Status: <strong className="text-emerald-400">ONLINE</strong>
+                System Status: <strong className="text-emerald-400">{loading ? "SYNCING..." : "ONLINE"}</strong>
               </span>
               {lastUpdated && (
                 <span className="px-2.5 py-0.5 rounded-full bg-slate-950 border border-slate-800 text-slate-400 text-[11px] font-mono">
@@ -352,24 +373,43 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Run Fusion Inference Button */}
-            <button
-              onClick={triggerInstantAnalysis}
-              disabled={analyzing}
-              className="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-xs tracking-wider transition-all flex items-center justify-center gap-2 shadow-lg shadow-cyan-600/20 disabled:opacity-50"
-            >
-              {analyzing ? (
-                <>
-                  <RefreshCw className="h-4 w-4 animate-spin" />
-                  <span>EXECUTING MULTI-SOURCE FUSION...</span>
-                </>
-              ) : (
-                <>
-                  <Play className="h-4 w-4" />
-                  <span>RUN LIVE AI INFERENCE PIPELINE</span>
-                </>
-              )}
-            </button>
+            {/* Run Fusion Inference Buttons */}
+            <div className="space-y-2 pt-1">
+              <button
+                onClick={triggerInstantAnalysis}
+                disabled={analyzing}
+                className="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-xs tracking-wider transition-all flex items-center justify-center gap-2 shadow-lg shadow-cyan-600/20 disabled:opacity-50"
+              >
+                {analyzing ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                    <span>EXECUTING MULTI-SOURCE FUSION...</span>
+                  </>
+                ) : (
+                  <>
+                    <Play className="h-4 w-4" />
+                    <span>RUN LIVE AI INFERENCE PIPELINE</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                onClick={triggerVerifiedDemoAnalysis}
+                disabled={analyzing}
+                className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-850 border border-cyan-800/80 hover:border-cyan-600 text-cyan-300 font-bold text-xs tracking-wider transition-all flex items-center justify-center gap-2 shadow disabled:opacity-50"
+              >
+                <Sparkles className="h-3.5 w-3.5 text-cyan-400" />
+                <span>RUN VERIFIED DEMO ANALYSIS (REMAL)</span>
+              </button>
+            </div>
+
+            {/* Error state display if API fails */}
+            {analysisError && (
+              <div className="mt-3 p-3.5 rounded-xl bg-rose-950/70 border border-rose-800 text-rose-300 text-xs flex items-center gap-2 animate-fadeIn">
+                <AlertTriangle className="h-4 w-4 shrink-0 text-rose-400" />
+                <span>{analysisError}</span>
+              </div>
+            )}
 
             {/* Live Model Results Card if Analyzed */}
             {analysisResult && (
