@@ -27,7 +27,27 @@ import {
   AnalyzeRequest 
 } from "@/lib/api";
 
+function formatDataAge(isoString?: string | null): string {
+  if (!isoString) return "N/A";
+  try {
+    const obsTime = new Date(isoString).getTime();
+    if (isNaN(obsTime)) return "N/A";
+    const now = Date.now();
+    const diffMs = Math.max(0, now - obsTime);
+    const diffSec = Math.floor(diffMs / 1000);
+    const diffMin = Math.floor(diffSec / 60);
+    const diffHour = Math.floor(diffMin / 60);
+    if (diffMin < 1) return "< 1 min ago";
+    if (diffMin < 60) return `${diffMin} min ago`;
+    if (diffHour < 24) return `${diffHour} hr ago`;
+    return `${Math.floor(diffHour / 24)}d ago`;
+  } catch {
+    return "N/A";
+  }
+}
+
 export default function AnalysisWorkbenchPage() {
+
   const [activeScenarioId, setActiveScenarioId] = useState<string>("severe_storm");
   const [dataMode, setDataMode] = useState<"DEMO" | "HISTORICAL" | "LIVE">("HISTORICAL");
 
@@ -105,19 +125,20 @@ export default function AnalysisWorkbenchPage() {
     setError(null);
 
     try {
+      const isLive = dataMode === "LIVE";
       const payload: AnalyzeRequest = {
         latitude: lat,
         longitude: lon,
-        temperature,
-        humidity,
-        pressure,
-        wind_speed_kts: windKts,
-        wind_speed: Math.round(windKts * 1.852),
-        wind_direction: windDirection,
+        temperature: isLive ? undefined : temperature,
+        humidity: isLive ? undefined : humidity,
+        pressure: isLive ? undefined : pressure,
+        wind_speed_kts: isLive ? undefined : windKts,
+        wind_speed: isLive ? undefined : Math.round(windKts * 1.852),
+        wind_direction: isLive ? undefined : windDirection,
         cyclone_name: stormName,
-        satellite_image: satelliteImage,
+        satellite_image: isLive ? undefined : satelliteImage,
         data_mode: dataMode,
-        force_live_weather: forceLive
+        force_live_weather: isLive ? true : forceLive
       };
 
       const data = await analyzeCyclone(payload);
@@ -131,6 +152,7 @@ export default function AnalysisWorkbenchPage() {
       setLoading(false);
     }
   };
+
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
@@ -448,14 +470,99 @@ export default function AnalysisWorkbenchPage() {
                     }`}>
                       {result.risk_level} RISK ({result.risk_score}/100)
                     </span>
-                    <span className="px-2.5 py-1.5 rounded-xl text-xs font-mono font-bold bg-slate-900 text-slate-300 border border-slate-800">
-                      {result.data_mode} MODE
+                    <span className={`px-2.5 py-1.5 rounded-xl text-xs font-mono font-bold border ${
+                      result.data_mode === "LIVE"
+                        ? "bg-emerald-950 text-emerald-300 border-emerald-700"
+                        : result.data_mode === "HISTORICAL"
+                        ? "bg-cyan-950 text-cyan-300 border-cyan-700"
+                        : "bg-amber-950 text-amber-300 border-amber-700"
+                    }`}>
+                      DATA MODE: {result.data_mode}
                     </span>
                   </div>
                 </div>
 
+                {/* Provenance Badges */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-3">
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border ${
+                    result.weather_status === "UNAVAILABLE"
+                      ? "bg-rose-950 text-rose-300 border-rose-800"
+                      : "bg-slate-900 text-emerald-400 border-slate-800"
+                  }`}>
+                    LIVE WEATHER: {result.weather_status || "CONNECTED"}
+                  </span>
+
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border ${
+                    result.satellite_status === "UNAVAILABLE"
+                      ? "bg-rose-950 text-rose-300 border-rose-800"
+                      : "bg-slate-900 text-emerald-400 border-slate-800"
+                  }`}>
+                    SATELLITE: {result.satellite_status || "CONNECTED"}
+                  </span>
+
+                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-900 text-cyan-400 border border-slate-800">
+                    HISTORICAL BASELINE: IBTRACS
+                  </span>
+                </div>
+
+                {/* Freshness & Timestamps */}
+                <div className="mt-3 bg-slate-950/80 p-3 rounded-xl border border-slate-800/80 text-xs font-mono space-y-1">
+                  <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Source Provenance Freshness:</div>
+                  <div className="flex justify-between text-slate-300">
+                    <span>Weather Observation:</span>
+                    <strong className="text-white">{formatDataAge(result.weather_observation_time)}</strong>
+                  </div>
+                  <div className="flex justify-between text-slate-300">
+                    <span>Satellite Observation:</span>
+                    <strong className="text-white">{formatDataAge(result.satellite_observation_time)}</strong>
+                  </div>
+                  <div className="flex justify-between text-slate-400 text-[10px]">
+                    <span>Satellite Source:</span>
+                    <span className="truncate max-w-[220px]">{result.satellite_source || "MOSDAC INSAT-3D NRT"}</span>
+                  </div>
+                </div>
+
+                {/* Observed Meteorological Telemetry */}
+                <div className="mt-3 space-y-1">
+                  <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider block">
+                    Observed Meteorological Telemetry:
+                  </span>
+                  <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 text-center font-mono text-xs">
+                    <div className="bg-slate-950/80 p-2 rounded-lg border border-slate-800">
+                      <span className="text-[9px] text-slate-500 block">TEMP</span>
+                      <strong className="text-white">
+                        {result.current_temperature_c != null ? `${result.current_temperature_c.toFixed(1)}°C` : "--"}
+                      </strong>
+                    </div>
+                    <div className="bg-slate-950/80 p-2 rounded-lg border border-slate-800">
+                      <span className="text-[9px] text-slate-500 block">HUMIDITY</span>
+                      <strong className="text-white">
+                        {result.current_humidity_pct != null ? `${result.current_humidity_pct.toFixed(0)}%` : "--"}
+                      </strong>
+                    </div>
+                    <div className="bg-slate-950/80 p-2 rounded-lg border border-slate-800">
+                      <span className="text-[9px] text-slate-500 block">PRESSURE</span>
+                      <strong className="text-white">
+                        {result.current_pressure_hpa != null ? `${result.current_pressure_hpa.toFixed(1)} hPa` : "--"}
+                      </strong>
+                    </div>
+                    <div className="bg-slate-950/80 p-2 rounded-lg border border-slate-800">
+                      <span className="text-[9px] text-slate-500 block">WIND SPEED</span>
+                      <strong className="text-amber-400">
+                        {result.current_wind_speed_kts != null ? `${result.current_wind_speed_kts.toFixed(1)} kts` : "--"}
+                      </strong>
+                    </div>
+                    <div className="bg-slate-950/80 p-2 rounded-lg border border-slate-800">
+                      <span className="text-[9px] text-slate-500 block">DIRECTION</span>
+                      <strong className="text-slate-300">
+                        {result.current_wind_direction_deg != null ? `${result.current_wind_direction_deg.toFixed(0)}°` : "--"}
+                      </strong>
+                    </div>
+                  </div>
+                </div>
+
                 {/* 3 Model Summaries */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4 text-xs font-mono">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3 text-xs font-mono">
                   <div className="bg-slate-950/80 p-3 rounded-xl border border-slate-800/80">
                     <span className="text-[10px] text-slate-500 block uppercase">MODEL A: DETECTION</span>
                     <strong className={result.cyclone_detected ? "text-emerald-400 text-sm" : "text-slate-400 text-sm"}>
@@ -477,6 +584,7 @@ export default function AnalysisWorkbenchPage() {
                   </div>
                 </div>
               </div>
+
 
               {/* Decoupled Prototype Risk Index Breakdown */}
               <div className="glass-panel p-6 rounded-2xl border border-slate-800 space-y-4">
@@ -599,12 +707,13 @@ export default function AnalysisWorkbenchPage() {
                   <span>Data Provenance Attribution</span>
                 </div>
                 <div>Sources: {(result.sources || result.data_sources)?.join(" • ")}</div>
-                <div className="text-slate-500 font-mono text-[10px] pt-1">
-                  DISCLAIMER: {result.disclaimer}
+                <div className="text-amber-300/80 font-mono text-[10px] pt-1">
+                  DISCLAIMER: NOT AN OFFICIAL METEOROLOGICAL WARNING. LIVE INPUT DATA ≠ OFFICIAL METEOROLOGICAL FORECAST. {result.disclaimer}
                 </div>
               </div>
             </div>
           )}
+
         </div>
       </div>
     </div>

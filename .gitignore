@@ -58,5 +58,13 @@ desktop.ini
 *.sqlite3
 *.db
 
+# Live Satellite Cache Artifacts
+ml/data/samples/satellite/live_*.jpg
+ml/data/samples/satellite/live_*.png
+
+
 # Streamlit
 .streamlit/secrets.toml
+
+# Scratch / debug
+scratch/

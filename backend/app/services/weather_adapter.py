@@ -17,48 +17,70 @@ class WeatherAdapter:
         cls, 
         latitude: float, 
         longitude: float, 
-        force_live: bool = False
+        force_live: bool = False,
+        data_mode: str = "DEMO"
     ) -> Dict[str, Any]:
         api_key = settings.OPENWEATHER_API_KEY.strip()
+        is_live = (data_mode == "LIVE") or force_live
         
-        # 1. Attempt live OpenWeather API if key is present
-        if api_key and (force_live or settings.DATA_MODE in ["LIVE", "HYBRID"]):
-            try:
-                url = f"https://api.openweathermap.org/data/2.5/weather"
-                params = {
-                    "lat": latitude,
-                    "lon": longitude,
-                    "appid": api_key,
-                    "units": "metric"
-                }
-                async with httpx.AsyncClient(timeout=4.0) as client:
-                    resp = await client.get(url, params=params)
-                    if resp.status_code == 200:
-                        data = resp.json()
-                        main = data.get("main", {})
-                        wind = data.get("wind", {})
-                        
-                        wind_ms = float(wind.get("speed", 0.0))
-                        wind_kmh = round(wind_ms * 3.6, 1)
-                        wind_kts = round(wind_ms * 1.94384, 1)
-                        
-                        return {
-                            "temperature_c": float(main.get("temp", 28.0)),
-                            "humidity_pct": float(main.get("humidity", 80.0)),
-                            "pressure_hpa": float(main.get("pressure", 1008.0)),
-                            "wind_speed_kmh": wind_kmh,
-                            "wind_speed_kts": wind_kts,
-                            "wind_direction_deg": float(wind.get("deg", 180.0)),
-                            "data_mode": "LIVE",
-                            "source": "OpenWeather API (Live)"
-                        }
-                    else:
-                        logger.warning(f"OpenWeather returned {resp.status_code}. Falling back to demo adapter.")
-            except Exception as e:
-                logger.warning(f"Failed to query OpenWeather API: {e}. Falling back to demo adapter.")
+        # 1. LIVE MODE: OpenWeather query is mandatory and must fail honestly
+        if is_live:
+            if not api_key:
+                raise ValueError("LIVE WEATHER UNAVAILABLE: OPENWEATHER_API_KEY is not configured on the backend.")
 
-        # 2. Deterministic Meteorological Climatology / Demo Fallback
-        # Calculates realistic tropical ocean background pressure & winds
+            url = "https://api.openweathermap.org/data/2.5/weather"
+            params = {
+                "lat": latitude,
+                "lon": longitude,
+                "appid": api_key,
+                "units": "metric"
+            }
+            try:
+                async with httpx.AsyncClient(timeout=6.0) as client:
+                    resp = await client.get(url, params=params)
+                    if resp.status_code == 401:
+                        raise ValueError("LIVE WEATHER UNAVAILABLE: Invalid OpenWeather API key (401 Unauthorized).")
+                    elif resp.status_code != 200:
+                        raise ValueError(f"LIVE WEATHER UNAVAILABLE: OpenWeather API returned HTTP {resp.status_code} ({resp.text[:100]}).")
+                    
+                    data = resp.json()
+                    main = data.get("main", {})
+                    wind = data.get("wind", {})
+                    clouds = data.get("clouds", {})
+                    
+                    wind_ms = float(wind.get("speed", 0.0))
+                    wind_kmh = round(wind_ms * 3.6, 1)
+                    wind_kts = round(wind_ms * 1.94384, 1)
+
+                    from datetime import datetime, timezone
+                    dt = data.get("dt")
+                    obs_time = (
+                        datetime.fromtimestamp(dt, tz=timezone.utc).isoformat()
+                        if dt else datetime.now(timezone.utc).isoformat()
+                    )
+                    
+                    return {
+                        "temperature_c": float(main.get("temp", 28.0)),
+                        "humidity_pct": float(main.get("humidity", 80.0)),
+                        "pressure_hpa": float(main.get("pressure", 1008.0)),
+                        "wind_speed_kmh": wind_kmh,
+                        "wind_speed_kts": wind_kts,
+                        "wind_direction_deg": float(wind.get("deg", 180.0)),
+                        "cloud_pct": float(clouds.get("all", 0.0)),
+                        "observed_at": obs_time,
+                        "city": data.get("name"),
+                        "coordinates": {"latitude": latitude, "longitude": longitude},
+                        "data_mode": "LIVE",
+                        "source": "OpenWeather Current Weather (Live Telemetry)",
+                        "status": "CONNECTED"
+                    }
+            except Exception as e:
+                if "LIVE WEATHER UNAVAILABLE" in str(e):
+                    raise
+                logger.error(f"Live OpenWeather fetch failed: {e}")
+                raise ValueError(f"LIVE WEATHER UNAVAILABLE: Could not connect to OpenWeather: {e}")
+
+        # 2. Deterministic Meteorological Climatology / Demo Fallback for non-live modes
         return cls._generate_deterministic_demo(latitude, longitude)
 
     @classmethod

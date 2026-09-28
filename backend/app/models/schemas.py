@@ -85,6 +85,18 @@ class AnalyzeResponse(BaseModel):
         "decision-support heuristic engineered exclusively for research and simulation drills."
     )
 
+    # Phase 4 Live Telemetry & Provenance Fields
+    current_temperature_c: Optional[float] = None
+    current_humidity_pct: Optional[float] = None
+    current_pressure_hpa: Optional[float] = None
+    current_wind_speed_kts: Optional[float] = None
+    current_wind_direction_deg: Optional[float] = None
+    weather_observation_time: Optional[str] = None
+    weather_status: Optional[str] = None
+    satellite_observation_time: Optional[str] = None
+    satellite_source: Optional[str] = None
+    satellite_status: Optional[str] = None
+
 
 # --- Sub-model Schemas ---
 class DetectRequest(BaseModel):
@@ -205,3 +217,41 @@ class HealthResponse(BaseModel):
     version: str
     data_mode: str
     subsystems: Dict[str, SubsystemHealth]
+
+
+# --- Live Auto-Discovery & Analysis ---
+class LiveAnalyzeRequest(BaseModel):
+    data_mode: str = Field("LIVE", description="Operational data mode, must be LIVE")
+    force_refresh: bool = Field(False, description="Bypass discovery cache and query IMD directly")
+
+class LiveDiscoverResponse(BaseModel):
+    status: str = "success"
+    data_mode: str = "LIVE"
+    source: str = "IMD_RSMC_PUBLIC_BULLETIN"
+    active_systems: List[Dict[str, Any]] = []
+    message: Optional[str] = None
+    bulletin_url: Optional[str] = None
+    timestamp: str
+
+class LiveAnalyzeResponse(BaseModel):
+    data_mode: str = "LIVE"
+    status: str = "ACTIVE_SYSTEM"
+    message: Optional[str] = None
+    system: Dict[str, Any]
+    weather: Optional[Dict[str, Any]] = None
+    satellite: Optional[Dict[str, Any]] = None
+    historical_baseline: Optional[Dict[str, Any]] = None
+    analysis: Optional[Dict[str, Any]] = None
+    forecast: Optional[List[Dict[str, Any]]] = None
+    risk: Optional[Dict[str, Any]] = None
+    explanation: Optional[List[Dict[str, Any]]] = None
+    provenance: Dict[str, Any]
+    data_sources: Optional[List[str]] = None
+    source_timestamp: Optional[str] = None
+    source_url: Optional[str] = None
+    timestamp: str
+    disclaimer: str = (
+        "NOT AN OFFICIAL METEOROLOGICAL WARNING. LIVE INPUT DATA ≠ OFFICIAL METEOROLOGICAL FORECAST. "
+        "The CYCLONEX Prototype Risk Index is a decision-support research heuristic and does not replace official IMD warnings."
+    )
+

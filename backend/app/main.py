@@ -20,6 +20,7 @@ try:
     from app.api.v1.endpoints import (
         health,
         analyze,
+        live,
         detect,
         classify,
         predict,
@@ -34,6 +35,7 @@ except ImportError:
     from backend.app.api.v1.endpoints import (
         health,
         analyze,
+        live,
         detect,
         classify,
         predict,
@@ -43,6 +45,7 @@ except ImportError:
         ingest,
         validation
     )
+
 
 app = FastAPI(
     title="CYCLONEX Tropical Cyclone Intelligence Platform",
@@ -78,7 +81,9 @@ def root_health():
 api_v1_prefix = "/api/v1"
 app.include_router(health.router, prefix=api_v1_prefix, tags=["System Health"])
 app.include_router(analyze.router, prefix=api_v1_prefix, tags=["Multi-Source AI Analysis"])
+app.include_router(live.router, prefix=api_v1_prefix, tags=["Live Auto Discovery & Analysis"])
 app.include_router(detect.router, prefix=api_v1_prefix, tags=["Model A: Detection"])
+
 app.include_router(classify.router, prefix=api_v1_prefix, tags=["Model B: Classification"])
 app.include_router(predict.router, prefix=api_v1_prefix, tags=["Model C: Prediction"])
 app.include_router(cyclones.router, prefix=api_v1_prefix, tags=["Cyclone Monitoring"])

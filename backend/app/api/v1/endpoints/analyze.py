@@ -14,6 +14,7 @@ from app.models.schemas import (
     FeatureExplanation,
 )
 from app.services.weather_adapter import WeatherAdapter
+from app.services.satellite_service import SatelliteService
 from app.services.alert_service import alert_service
 from app.services.supabase_client import storage_service
 
@@ -39,10 +40,12 @@ async def analyze_cyclone_system(req: AnalyzeRequest):
       7. Automated Emergency Alert Trigger (n8n integration)
     """
     data_sources: List[str] = []
+    now_iso = datetime.now(timezone.utc).isoformat()
     
     # 1. Normalize data_mode
     mode_str = (req.data_mode or "DEMO").upper().strip()
-    if mode_str == "LIVE" or req.force_live_weather:
+    is_live = (mode_str == "LIVE") or req.force_live_weather
+    if is_live:
         data_mode = "LIVE"
         enum_mode = DataMode.LIVE
     elif mode_str == "HISTORICAL":
@@ -52,7 +55,7 @@ async def analyze_cyclone_system(req: AnalyzeRequest):
         data_mode = "DEMO"
         enum_mode = DataMode.DEMO
 
-    # 2. Resolve Weather Telemetry (Provided In-Situ vs Weather Provider)
+    # Telemetry and provenance metadata tracking
     temp = req.temperature
     humidity = req.humidity
     pressure = req.pressure
@@ -60,53 +63,113 @@ async def analyze_cyclone_system(req: AnalyzeRequest):
     wind_kts = req.wind_speed_kts
     wind_heading = req.wind_direction
 
-    # Convert units if only one was supplied
-    if wind_kts is not None and wind_kmh is None:
-        wind_kmh = round(wind_kts * 1.852, 1)
-    elif wind_kmh is not None and wind_kts is None:
-        wind_kts = round(wind_kmh / 1.852, 1)
+    weather_obs_time = None
+    weather_status = "CONNECTED"
+    satellite_obs_time = None
+    satellite_source_name = None
+    satellite_status = "NOT_REQUESTED"
+    sat_image_path = req.satellite_image_path
+    sat_image_features = None
 
-    if None in [temp, humidity, pressure, wind_kts]:
-        # Use weather adapter fallback
-        weather_obs = await WeatherAdapter.fetch_weather(
-            req.latitude, 
-            req.longitude, 
-            force_live=req.force_live_weather
-        )
-        if temp is None:
-            temp = weather_obs.get("temperature_c", 28.0)
-        if humidity is None:
-            humidity = weather_obs.get("humidity_pct", 80.0)
-        if pressure is None:
-            pressure = weather_obs.get("pressure_hpa", 1005.0)
-        if wind_kts is None:
-            wind_kmh_fetched = weather_obs.get("wind_speed_kmh", 30.0)
-            wind_kts = round(wind_kmh_fetched / 1.852, 1)
-            wind_kmh = wind_kmh_fetched
-        if wind_heading is None:
-            wind_heading = weather_obs.get("wind_direction_deg", 340.0)
-        
-        data_sources.append(weather_obs.get("source", "OpenWeather"))
-        if weather_obs.get("data_mode") == "LIVE":
-            data_mode = "LIVE"
-            enum_mode = DataMode.LIVE
+    # 2. LIVE MODE: Automated external ingestion with strict failure handling
+    if is_live:
+        # A. Live Weather Telemetry via OpenWeather
+        try:
+            weather_obs = await WeatherAdapter.fetch_weather(
+                req.latitude,
+                req.longitude,
+                force_live=True,
+                data_mode="LIVE"
+            )
+        except ValueError as val_err:
+            logger.error(f"Live weather failure: {val_err}")
+            raise HTTPException(status_code=400, detail=str(val_err))
+
+        # In LIVE mode, auto-populate meteorological telemetry from OpenWeather
+        temp = weather_obs.get("temperature_c", 28.0) if temp is None else temp
+        humidity = weather_obs.get("humidity_pct", 80.0) if humidity is None else humidity
+        pressure = weather_obs.get("pressure_hpa", 1008.0) if pressure is None else pressure
+        wind_kts = weather_obs.get("wind_speed_kts", 25.0) if wind_kts is None else wind_kts
+        wind_kmh = weather_obs.get("wind_speed_kmh", round(wind_kts * 1.852, 1))
+        wind_heading = weather_obs.get("wind_direction_deg", 180.0) if wind_heading is None else wind_heading
+        weather_obs_time = weather_obs.get("observed_at", now_iso)
+        weather_status = "CONNECTED"
+        data_sources.append(weather_obs.get("source", "OpenWeather Current Weather (Live Telemetry)"))
+
+        # B. Live Satellite Telemetry via MOSDAC / ISRO INSAT NRT
+        sat_obs = await SatelliteService.fetch_live_satellite(req.latitude, req.longitude)
+        if sat_obs.get("available"):
+            sat_image_path = sat_obs.get("local_path")
+            sat_image_features = sat_obs.get("image_features")
+            satellite_obs_time = sat_obs.get("acquisition_timestamp")
+            satellite_source_name = sat_obs.get("source")
+            satellite_status = "CONNECTED"
+            data_sources.append(satellite_source_name)
+        else:
+            sat_image_path = None
+            sat_image_features = None
+            satellite_obs_time = None
+            satellite_source_name = "MOSDAC INSAT NRT (Unavailable)"
+            satellite_status = "UNAVAILABLE"
+            data_sources.append(satellite_source_name)
+
+        # C. Authoritative Historical Climatology Reference Baseline
+        data_sources.append("HISTORICAL BASELINE — IBTrACS")
+
+    # 3. DEMO and HISTORICAL Modes: Local / In-Situ / Deterministic Execution
     else:
-        data_sources.append("In-Situ Sensor Telemetry")
+        # Convert units if only one was supplied
+        if wind_kts is not None and wind_kmh is None:
+            wind_kmh = round(wind_kts * 1.852, 1)
+        elif wind_kmh is not None and wind_kts is None:
+            wind_kts = round(wind_kmh / 1.852, 1)
 
-    # Satellite data attribution
-    if req.satellite_image_path:
-        data_sources.append(f"Satellite File ({req.satellite_image_path})")
-    elif req.satellite_image:
-        data_sources.append("Base64 Ingested Satellite Tile")
-    else:
-        data_sources.append("Synthetic Proxy Features (INSAT-3D Benchmark)")
+        if None in [temp, humidity, pressure, wind_kts]:
+            weather_obs = await WeatherAdapter.fetch_weather(
+                req.latitude, 
+                req.longitude, 
+                force_live=False,
+                data_mode=data_mode
+            )
+            if temp is None:
+                temp = weather_obs.get("temperature_c", 28.0)
+            if humidity is None:
+                humidity = weather_obs.get("humidity_pct", 80.0)
+            if pressure is None:
+                pressure = weather_obs.get("pressure_hpa", 1005.0)
+            if wind_kts is None:
+                wind_kmh_fetched = weather_obs.get("wind_speed_kmh", 30.0)
+                wind_kts = round(wind_kmh_fetched / 1.852, 1)
+                wind_kmh = wind_kmh_fetched
+            if wind_heading is None:
+                wind_heading = weather_obs.get("wind_direction_deg", 340.0)
+            
+            data_sources.append(weather_obs.get("source", "Meteorological Climatology Model (DEMO ADAPTER)"))
+        else:
+            data_sources.append("In-Situ Sensor Telemetry")
 
-    if data_mode == "HISTORICAL":
-        data_sources.append("NOAA IBTrACS Benchmark Track")
+        weather_obs_time = now_iso
+        weather_status = "CONNECTED (DEMO/HISTORICAL)"
 
-    # 3. Construct UnifiedObservation for ML Pipeline
+        # Satellite attribution for non-live modes
+        if req.satellite_image_path:
+            data_sources.append(f"Satellite File ({req.satellite_image_path})")
+            satellite_status = "DEMO_FILE"
+            satellite_source_name = f"Curated Archive ({req.satellite_image_path})"
+        elif req.satellite_image:
+            data_sources.append("Base64 Ingested Satellite Tile")
+            satellite_status = "INGESTED"
+            satellite_source_name = "User Ingested Imagery"
+        else:
+            data_sources.append("Synthetic Proxy Features (INSAT-3D Benchmark)")
+            satellite_status = "DEMO_PROXY"
+            satellite_source_name = "Synthetic Satellite Calibration Proxy"
+
+        if data_mode == "HISTORICAL":
+            data_sources.append("NOAA IBTrACS Benchmark Track")
+
+    # 4. Construct UnifiedObservation for ML Pipeline
     observation_id = str(uuid.uuid4())
-    now_iso = datetime.now(timezone.utc).isoformat()
     obs = UnifiedObservation(
         observation_id=observation_id,
         timestamp=now_iso,
@@ -117,13 +180,14 @@ async def analyze_cyclone_system(req: AnalyzeRequest):
         pressure=pressure,
         wind_speed_kts=wind_kts,
         wind_direction=wind_heading,
-        image_path=req.satellite_image_path,
+        image_path=sat_image_path,
         image_base64=req.satellite_image,
+        image_features=sat_image_features,
         data_mode=enum_mode,
         source=",".join(data_sources)
     )
 
-    # 4. Execute Full End-to-End ML Pipeline
+    # 5. Execute Full End-to-End ML Pipeline
     # Runs Preprocessing -> Model A -> Model B -> Model C -> XAI -> Risk Engine
     pred: StructuredPrediction = inference_pipeline.predict_observation(obs)
 
@@ -292,5 +356,36 @@ async def analyze_cyclone_system(req: AnalyzeRequest):
         sources=data_sources,
         data_sources=data_sources,
         timestamp=now_iso,
-        disclaimer=pred.risk.disclaimer
+        disclaimer=pred.risk.disclaimer,
+        current_temperature_c=temp,
+        current_humidity_pct=humidity,
+        current_pressure_hpa=pressure,
+        current_wind_speed_kts=wind_kts,
+        current_wind_direction_deg=wind_heading,
+        weather_observation_time=weather_obs_time,
+        weather_status=weather_status,
+        satellite_observation_time=satellite_obs_time,
+        satellite_source=satellite_source_name,
+        satellite_status=satellite_status
     )
+
+
+@router.post("/demo", response_model=AnalyzeResponse, tags=["Multi-Source AI Analysis"])
+async def run_verified_demo_analysis():
+    """
+    Guaranteed Hackathon Benchmark Demonstration.
+    Runs full AI fusion pipeline on historical Cyclone Remal benchmark telemetry.
+    """
+    demo_req = AnalyzeRequest(
+        latitude=21.4,
+        longitude=89.2,
+        temperature=28.5,
+        humidity=86.0,
+        pressure=978.0,
+        wind_speed_kts=60.0,
+        wind_direction=355.0,
+        cyclone_name="Cyclone Remal",
+        data_mode="DEMO"
+    )
+    return await analyze_cyclone_system(demo_req)
+

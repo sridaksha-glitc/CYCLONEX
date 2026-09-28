@@ -11,6 +11,10 @@ class Settings(BaseSettings):
     CORS_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000,http://localhost:8000"
 
     OPENWEATHER_API_KEY: str = ""
+    MOSDAC_USERNAME: str = ""
+    MOSDAC_PASSWORD: str = ""
+    MOSDAC_DATASET_ID: str = "3D_IMG"
+    MOSDAC_NRT_URL: str = "https://mausam.imd.gov.in/Satellite/3Dasiasec_ir1.jpg"
     SUPABASE_URL: str = ""
     SUPABASE_KEY: str = ""
     SUPABASE_SERVICE_ROLE_KEY: str = ""

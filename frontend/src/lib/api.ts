@@ -85,7 +85,121 @@ export interface AnalyzeResponse {
   data_sources?: string[];
   timestamp: string;
   disclaimer: string;
+
+  // Phase 4 Live Telemetry & Provenance Fields
+  current_temperature_c?: number | null;
+  current_humidity_pct?: number | null;
+  current_pressure_hpa?: number | null;
+  current_wind_speed_kts?: number | null;
+  current_wind_direction_deg?: number | null;
+  weather_observation_time?: string | null;
+  weather_status?: string | null;
+  satellite_observation_time?: string | null;
+  satellite_source?: string | null;
+  satellite_status?: string | null;
 }
+
+export interface LiveSystemInfo {
+  active: boolean;
+  name?: string;
+  latitude?: number;
+  longitude?: number;
+  classification?: string;
+  wind_speed_kts?: number;
+  pressure_hpa?: number;
+  movement_direction?: string;
+  movement_speed_kmh?: number;
+  observed_at?: string;
+  source?: string;
+  source_url?: string;
+  message?: string;
+}
+
+export interface LiveAnalyzeResponse {
+  data_mode: "LIVE";
+  status: "ACTIVE_SYSTEM" | "MONITORING";
+  message?: string;
+  system: LiveSystemInfo;
+  weather?: {
+    temperature: number;
+    humidity: number;
+    pressure: number;
+    wind_speed: number;
+    wind_direction: number;
+    observed_at: string;
+    source?: string;
+  } | null;
+  satellite?: {
+    status: string;
+    source: string;
+    product?: string;
+    observed_at?: string;
+  } | null;
+  historical_baseline?: {
+    source: string;
+    status: string;
+  } | null;
+  analysis?: {
+    cyclone_detected: boolean;
+    cyclone_probability: number;
+    classification: string;
+    classification_confidence: number;
+    classification_tier: number;
+    predicted_wind_speed_kts: number;
+    predicted_pressure_hpa: number;
+    trend: string;
+    rapid_intensification: boolean;
+    model_version: string;
+  } | null;
+  forecast?: ForecastHorizon[] | null;
+  risk?: RiskAssessment | null;
+  explanation?: FeatureExplanation[] | null;
+  provenance: {
+    cyclone_source: string;
+    weather_source: string;
+    satellite_source: string;
+    historical_source: string;
+  };
+  data_sources?: string[];
+  source_timestamp?: string;
+  source_url?: string;
+  timestamp: string;
+  disclaimer: string;
+}
+
+export interface LiveDiscoverSystem {
+  active: boolean;
+  source: string;
+  bulletin_number?: string | null;
+  issue_datetime?: string | null;
+  system_type?: string | null;
+  system_name?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  movement_direction?: string | null;
+  movement_speed_kmph?: number | null;
+  region?: string | null;
+  current_wind_kmph?: number | null;
+  central_pressure_hpa?: number | null;
+  forecast_intensity?: string | null;
+  forecast_text?: string | null;
+  next_bulletin?: string | null;
+  source_url?: string | null;
+  data_mode: "LIVE";
+}
+
+export interface LiveDiscoverResponse {
+  status: string;
+  data_mode: "LIVE";
+  source: string;
+  active_systems: LiveDiscoverSystem[];
+  message?: string | null;
+  bulletin_url?: string | null;
+  timestamp: string;
+}
+
+
+
 
 export interface CycloneItem {
   id: string;
@@ -258,6 +372,50 @@ export const DEMO_ANALYSIS_PAYLOAD: AnalyzeRequest = {
 export async function runDemoAnalysis(): Promise<AnalyzeResponse> {
   return analyzeCyclone(DEMO_ANALYSIS_PAYLOAD);
 }
+
+export async function runLiveAnalysis(latitude = 15.2, longitude = 72.8): Promise<AnalyzeResponse> {
+  return analyzeCyclone({
+    latitude,
+    longitude,
+    data_mode: "LIVE",
+    force_live_weather: true
+  });
+}
+
+export async function discoverLiveBulletins(forceRefresh = false): Promise<LiveDiscoverResponse> {
+  const url = `${API_BASE_URL}/api/v1/live/discover${forceRefresh ? "?force_refresh=true" : ""}`;
+  const res = await fetch(url);
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(`Live Bulletin Discovery failed (${res.status}): ${errorText}`);
+  }
+  return await res.json();
+}
+
+export async function runLiveAutoAnalysis(forceRefresh = false): Promise<LiveAnalyzeResponse> {
+  const res = await fetch(`${API_BASE_URL}/api/v1/live/analyze`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ data_mode: "LIVE", force_refresh: forceRefresh })
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(`Live Auto Analysis error (${res.status}): ${errorText}`);
+  }
+
+  return await res.json();
+}
+
+export async function fetchLiveSystemStatus(): Promise<LiveSystemInfo> {
+  const res = await fetch(`${API_BASE_URL}/api/v1/live/system`);
+  if (!res.ok) {
+    throw new Error(`Live system lookup failed (${res.status})`);
+  }
+  return await res.json();
+}
+
+
 
 export async function analyzeCyclone(request: AnalyzeRequest): Promise<AnalyzeResponse> {
   const res = await fetch(`${API_BASE_URL}/api/v1/analyze`, {
