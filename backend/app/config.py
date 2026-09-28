@@ -1,4 +1,5 @@
-from typing import List
+from typing import List, Any
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
@@ -20,6 +21,13 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore"
     )
+
+    @field_validator("PORT", mode="before")
+    @classmethod
+    def parse_port(cls, v: Any) -> Any:
+        if v is None or (isinstance(v, str) and not v.strip()):
+            return 8000
+        return v
 
     @property
     def cors_origins_list(self) -> List[str]:
