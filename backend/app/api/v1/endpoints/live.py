@@ -19,7 +19,7 @@ from app.models.schemas import (
     LiveDiscoverResponse,
 )
 from app.services.cyclone_discovery import CycloneDiscoveryService
-from app.services.weather_adapter import WeatherAdapter
+from app.services.weather_adapter import WeatherAdapter, _sanitize_secret
 from app.services.satellite_service import SatelliteService
 from app.services.supabase_client import storage_service
 from app.services.alert_service import alert_service
@@ -153,15 +153,18 @@ async def live_auto_analyze(req: LiveAnalyzeRequest = LiveAnalyzeRequest()):
             data_mode="LIVE"
         )
     except ValueError as val_err:
-        logger.error(f"Live weather lookup failed in live auto analyze: {val_err}")
-        raise HTTPException(status_code=400, detail=f"LIVE_SOURCE_ERROR: {str(val_err)}")
+        err_msg = str(val_err)
+        clean_err = _sanitize_secret(err_msg, settings.OPENWEATHER_API_KEY)
+        logger.error(f"Live weather lookup failed in live auto analyze: {clean_err}")
+        raise HTTPException(status_code=502, detail=clean_err)
 
-    temp_c = weather_obs.get("temperature_c", 28.5)
-    humidity_pct = weather_obs.get("humidity_pct", 82.0)
-    surface_pressure = weather_obs.get("pressure_hpa", imd_pressure)
-    wind_kts = weather_obs.get("wind_speed_kts", imd_wind_kts)
-    wind_deg = weather_obs.get("wind_direction_deg", 220.0)
-    weather_obs_time = weather_obs.get("observed_at", now_iso)
+    weather_status = weather_obs.get("status", "CONNECTED")
+    temp_c = weather_obs.get("temperature_c")
+    humidity_pct = weather_obs.get("humidity_pct")
+    surface_pressure = weather_obs.get("pressure_hpa") or imd_pressure
+    wind_kts = weather_obs.get("wind_speed_kts") or imd_wind_kts
+    wind_deg = weather_obs.get("wind_direction_deg") or 220.0
+    weather_obs_time = weather_obs.get("observed_at")
 
     # 5. Fetch Live INSAT Satellite Product
     sat_obs = await SatelliteService.fetch_live_satellite(lat, lon)
@@ -172,9 +175,14 @@ async def live_auto_analyze(req: LiveAnalyzeRequest = LiveAnalyzeRequest()):
     sat_path = sat_obs.get("local_path") if sat_obs.get("available") else None
 
     # 6. Execute ML Inference Pipeline
+    weather_source_name = (
+        weather_obs.get("source", "OpenWeather Current Weather (Live Telemetry)")
+        if weather_status == "CONNECTED"
+        else "OpenWeather Current Weather (Unconfigured)"
+    )
     data_sources = [
         "IMD/RSMC Public National Bulletin",
-        "OpenWeather Current Weather (Live Telemetry)",
+        weather_source_name,
         sat_source_name if sat_status == "CONNECTED" else "IMD INSAT NRT (Unavailable)",
         "HISTORICAL BASELINE — IBTrACS"
     ]
@@ -305,13 +313,14 @@ async def live_auto_analyze(req: LiveAnalyzeRequest = LiveAnalyzeRequest()):
             "source": "IMD_RSMC_PUBLIC_BULLETIN"
         },
         weather={
+            "status": weather_status,
             "temperature": temp_c,
             "humidity": humidity_pct,
-            "pressure": surface_pressure,
-            "wind_speed": wind_kts,
-            "wind_direction": wind_deg,
+            "pressure": surface_pressure if weather_status == "CONNECTED" else None,
+            "wind_speed": wind_kts if weather_status == "CONNECTED" else None,
+            "wind_direction": wind_deg if weather_status == "CONNECTED" else None,
             "observed_at": weather_obs_time,
-            "source": weather_obs.get("source", "OpenWeather Current Weather")
+            "source": weather_source_name
         },
         satellite={
             "status": sat_status,

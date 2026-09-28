@@ -92,8 +92,7 @@ async def analyze_cyclone_system(req: AnalyzeRequest):
         wind_kts = weather_obs.get("wind_speed_kts", 25.0) if wind_kts is None else wind_kts
         wind_kmh = weather_obs.get("wind_speed_kmh", round(wind_kts * 1.852, 1))
         wind_heading = weather_obs.get("wind_direction_deg", 180.0) if wind_heading is None else wind_heading
-        weather_obs_time = weather_obs.get("observed_at", now_iso)
-        weather_status = "CONNECTED"
+        weather_status = weather_obs.get("status", "CONNECTED")
         data_sources.append(weather_obs.get("source", "OpenWeather Current Weather (Live Telemetry)"))
 
         # B. Live Satellite Telemetry via MOSDAC / ISRO INSAT NRT
